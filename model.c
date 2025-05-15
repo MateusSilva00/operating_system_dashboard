@@ -109,13 +109,51 @@ void display_memory_info(MemInfo *info)
 }
 
 
-int is_numeric(const char *str){
-    for(; *str; str++){
-        if (!isdigit(*str))
-            return 0;
+int get_cpuinfo(CpuInfo *cpu)
+{
+    FILE *statFile = fopen(STAT_PATH, "r");
+    if (!statFile)
+    {
+        perror("Erro ao abrir /proc/stat");
+        return -1;
     }
-    return 1;
+
+    char linha[MAX_LINE_LENGTH];
+    if (!fgets(linha, sizeof(linha), statFile))
+    {
+        fclose(statFile);
+        return -1;
+    }
+
+    unsigned long long user, nice, system, idle, iowait, irq, softirq, steal;
+    int readValuesCount = sscanf(linha, "cpu %llu %llu %llu %llu %llu %llu %llu",
+                       &user, &nice, &system, &idle, &iowait, &irq, &softirq);
+
+    fclose(statFile);
+
+    if (readValuesCount < 4)
+        return -1;
+
+    cpu->idle = idle + iowait;
+    cpu->total = user + nice + system + idle + iowait + irq + softirq;
+
+    return 0;
 }
+
+double calc_cpu_usage(CpuInfo *cpu1, CpuInfo *cpu2)
+{
+    unsigned long long delta_total = cpu2->total - cpu1->total;
+    unsigned long long delta_idle = cpu2->idle - cpu1->idle;
+    double cpu_usage = 100.0 * (delta_total - delta_idle) / delta_total;
+
+    return cpu_usage;
+
+}
+
+void display_cpu_usage(double uso_percentual) {
+    printf("🧠 Uso de CPU     : %.2f%%\n", uso_percentual);
+}
+
 
 int read_process_list(ProcessInfo *processes, int max_count) {
     DIR *proc_dir = opendir(PROC_PATH);
@@ -129,7 +167,7 @@ int read_process_list(ProcessInfo *processes, int max_count) {
     int count = 0;
 
     while ((entry = readdir(proc_dir)) != NULL && count < max_count) {
-        if (is_numeric(entry->d_name)) continue;
+        // if (is_numeric(entry->d_name)) continue;
 
         int pid = atoi(entry->d_name);
         char comm_path[512];
@@ -161,42 +199,6 @@ void display_process_list(ProcessInfo *processes, int count) {
 }
 
 
-int get_cpuinfo(CpuInfo *cpu)
-{
-    FILE *statFile = fopen(STAT_PATH, "r");
-    if (!statFile)
-    {
-        perror("Erro ao abrir /proc/stat");
-        return -1;
-    }
-
-    char linha[MAX_LINE_LENGTH];
-    if (!fgets(linha, sizeof(linha), statFile))
-    {
-        fclose(statFile);
-        return -1;
-    }
-
-    unsigned long long user, nice, system, idle, iowait, irq, softirq, steal;
-    int readValuesCount = sscanf(linha, "cpu %llu %llu %llu %llu %llu %llu %llu %llu",
-                       &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal);
-
-    fclose(statFile);
-
-    if (readValuesCount < 4)
-        return -1;
-
-    cpu->idle = idle + iowait;
-    cpu->total = user + nice + system + idle + iowait + irq + softirq + steal;
-
-    return 0;
-}
-
-void display_cpu_usage(double uso_percentual) {
-    printf("🧠 Uso de CPU     : %.2f%%\n", uso_percentual);
-}
-
-
 int main(void)
 {
     while (1) {
@@ -206,29 +208,27 @@ int main(void)
         CpuInfo cpu1, cpu2;
         ProcessInfo processes[MAX_PROCESSES];
 
+        if (get_cpuinfo(&cpu1) != 0) return 1;
+        usleep(100000);
+        if (get_cpuinfo(&cpu2) != 0) return 1;
+        
+        double cpu_usage = calc_cpu_usage(&cpu1, &cpu2);
+
         if (get_meminfo(&meminfo) == 0){
             calc_mem_usage(&meminfo);
             display_memory_info(&meminfo);
         }
 
-        if (get_cpuinfo(&cpu1) != 0) return 1;
-        sleep(1);
-        if (get_cpuinfo(&cpu2) != 0) return 1;
-
-        // unsigned long long delta_total = cpu2.total - cpu1.total;
-        // unsigned long long delta_idle = cpu2.idle - cpu1.idle;
-
-        // double cpu_usage = 100.0 * (delta_total - delta_idle) / delta_total;
+        display_cpu_usage(cpu_usage);
 
 
-        // display_cpu_usage(cpu_usage);
         // int count = read_process_list(processes, MAX_PROCESSES);
         // if (count >= 0) {
         //     display_process_list(processes, count);
         // }
 
         // printf("\nAtualizando novamente em %d segundos...\n", SECONDS_INTERVAL);
-        // sleep(SECONDS_INTERVAL);
+        sleep(1);
     }
 
     return EXIT_SUCCESS;
