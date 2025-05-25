@@ -228,15 +228,177 @@ class Dashboard(tk.Tk):
         self.cpu_canvas.get_tk_widget().pack(fill="both", expand=True)
 
     def _create_process_tab(self, tab_frame: ttk.Frame):
-        """Cria aba de processos"""
+        """Cria aba de processos com sub-abas para processos e threads"""
         container = tk.Frame(tab_frame, bg=self.BACKGROUND_COLOR)
-        container.pack(fill="both", expand=True, padx=20, pady=20)
+        container.pack(fill="both", expand=True, padx=15, pady=15)
 
-        title = ttk.Label(container, text="⚙️ PROCESSOS ATIVOS", style="Title.TLabel")
-        title.pack(anchor="w", pady=(0, 20))
+        # Header da aba
+        header_frame = tk.Frame(container, bg=self.BACKGROUND_COLOR)
+        header_frame.pack(fill="x", pady=(0, 15))
+        
+        title = ttk.Label(header_frame, text="⚙️ GERENCIADOR DE PROCESSOS", style="Title.TLabel")
+        title.pack(side="left")
 
-        columns = ("PID", "PROCESSO", "MEMÓRIA", "THREADS")
-        self._create_treeview(container, columns, "processes")
+        # Métricas resumo
+        metrics_frame = tk.Frame(container, bg=self.BACKGROUND_COLOR)
+        metrics_frame.pack(fill="x", pady=(0, 15))
+
+        # Cards de métricas lado a lado
+        metrics_container = tk.Frame(metrics_frame, bg=self.BACKGROUND_COLOR)
+        metrics_container.pack(fill="x")
+
+        process_card = ttk.Frame(metrics_container, style="Card.TFrame")
+        process_card.pack(side="left", fill="x", expand=True, padx=(0, 8))
+
+        thread_card = ttk.Frame(metrics_container, style="Card.TFrame")
+        thread_card.pack(side="right", fill="x", expand=True, padx=(8, 0))
+
+        # Métrica de processos
+        proc_title = ttk.Label(process_card, text="📊 TOTAL DE PROCESSOS", style="Info.TLabel")
+        proc_title.pack(anchor="w", padx=15, pady=(10, 5))
+
+        self.metric_labels["total_processes"] = ttk.Label(
+            process_card, text="-- processos", style="Metric.TLabel"
+        )
+        self.metric_labels["total_processes"].pack(anchor="w", padx=15, pady=(0, 10))
+
+        # Métrica de threads
+        thread_title = ttk.Label(thread_card, text="🧵 TOTAL DE THREADS", style="Info.TLabel")
+        thread_title.pack(anchor="w", padx=15, pady=(10, 5))
+
+        self.metric_labels["total_threads"] = ttk.Label(
+            thread_card, text="-- threads", style="Metric.TLabel"
+        )
+        self.metric_labels["total_threads"].pack(anchor="w", padx=15, pady=(0, 10))
+
+        # Sub-abas para processos e threads
+        self.process_tab_control = ttk.Notebook(container)
+        self.process_tab_control.pack(expand=1, fill="both")
+
+        # Sub-aba de processos
+        processes_frame = ttk.Frame(self.process_tab_control)
+        self.process_tab_control.add(processes_frame, text="🔄 PROCESSOS ATIVOS")
+
+        proc_container = tk.Frame(processes_frame, bg=self.BACKGROUND_COLOR)
+        proc_container.pack(fill="both", expand=True, padx=10, pady=10)
+
+        proc_header = ttk.Label(proc_container, text="TOP PROCESSOS POR MEMÓRIA", style="Info.TLabel")
+        proc_header.pack(anchor="w", pady=(0, 10))
+
+        proc_columns = ("PID", "USUÁRIO", "PROCESSO", "STATUS", "MEMÓRIA", "THREADS")
+        self._create_treeview(proc_container, proc_columns, "processes")
+
+        # Sub-aba de threads
+        threads_frame = ttk.Frame(self.process_tab_control)
+        self.process_tab_control.add(threads_frame, text="🧵 THREADS ATIVAS")
+
+        thread_container = tk.Frame(threads_frame, bg=self.BACKGROUND_COLOR)
+        thread_container.pack(fill="both", expand=True, padx=10, pady=10)
+
+        thread_header = ttk.Label(thread_container, text="THREADS DO SISTEMA", style="Info.TLabel")
+        thread_header.pack(anchor="w", pady=(0, 10))
+
+        thread_columns = ("TID", "PID", "USUÁRIO", "PROCESSO", "STATUS")
+        self._create_treeview(thread_container, thread_columns, "threads")
+
+        # Sub-aba de detalhes
+        details_frame = ttk.Frame(self.process_tab_control)
+        self.process_tab_control.add(details_frame, text="📋 DETALHES")
+
+        details_container = tk.Frame(details_frame, bg=self.BACKGROUND_COLOR)
+        details_container.pack(fill="both", expand=True, padx=10, pady=10)
+
+        details_header = ttk.Label(details_container, text="DETALHES DO PROCESSO SELECIONADO", style="Info.TLabel")
+        details_header.pack(anchor="w", pady=(0, 10))
+
+        # Text widget para exibir detalhes
+        details_text_frame = tk.Frame(details_container, bg=self.BACKGROUND_COLOR)
+        details_text_frame.pack(fill="both", expand=True)
+
+        self.details_text = tk.Text(
+            details_text_frame,
+            bg=self.COLORS['dark'],
+            fg=self.COLORS['text'],
+            font=("JetBrains Mono", 10),
+            wrap=tk.WORD,
+            state=tk.DISABLED
+        )
+
+        details_scrollbar = ttk.Scrollbar(details_text_frame, orient="vertical", command=self.details_text.yview)
+        self.details_text.configure(yscrollcommand=details_scrollbar.set)
+
+        self.details_text.pack(side="left", fill="both", expand=True)
+        details_scrollbar.pack(side="right", fill="y")
+
+        # Bind para mostrar detalhes quando processo for selecionado
+        self.trees["processes"].bind("<ButtonRelease-1>", self._on_process_select)
+
+    def _on_process_select(self, event):
+        """Exibe detalhes do processo selecionado"""
+        tree = self.trees["processes"]
+        selection = tree.selection()
+        if not selection:
+            return
+
+        item = tree.item(selection[0])
+        values = item['values']
+        if values:
+            pid = values[0]
+            self._show_process_details(pid)
+
+    def _show_process_details(self, pid):
+        """Mostra detalhes completos do processo"""
+        details = self.controller.process_info.get_process_details(pid)
+        page_usage = self.controller.process_info.get_page_usage_by_pid(pid)
+
+        self.details_text.config(state=tk.NORMAL)
+        self.details_text.delete(1.0, tk.END)
+
+        if details:
+            output = f"🔍 DETALHES DO PROCESSO {pid}\n"
+            output += "=" * 50 + "\n\n"
+
+            # Informações básicas
+            basic_info = [
+                ("Nome", details.get('Name', 'N/A')),
+                ("Estado", details.get('State', 'N/A')),
+                ("PID", details.get('Pid', 'N/A')),
+                ("PPID", details.get('PPid', 'N/A')),
+                ("Usuário (UID)", details.get('Uid', 'N/A')),
+                ("Grupo (GID)", details.get('Gid', 'N/A')),
+                ("Threads", details.get('Threads', 'N/A')),
+            ]
+
+            output += "📋 INFORMAÇÕES BÁSICAS:\n"
+            for label, value in basic_info:
+                output += f"  {label}: {value}\n"
+
+            # Informações de memória
+            if any(key.startswith('Vm') for key in details.keys()):
+                output += "\n💾 INFORMAÇÕES DE MEMÓRIA:\n"
+                memory_keys = ['VmPeak', 'VmSize', 'VmLck', 'VmPin', 'VmHWM', 'VmRSS', 'VmData', 'VmStk', 'VmExe', 'VmLib', 'VmSwap']
+                for key in memory_keys:
+                    if key in details:
+                        output += f"  {key}: {details[key]}\n"
+
+            # Uso de páginas
+            if page_usage and any(page_usage.values()):
+                output += "\n📄 USO DE PÁGINAS:\n"
+                output += f"  Total: {page_usage.get('total', 0)} kB\n"
+                output += f"  Código: {page_usage.get('code', 0)} kB\n"
+                output += f"  Heap: {page_usage.get('heap', 0)} kB\n"
+                output += f"  Stack: {page_usage.get('stack', 0)} kB\n"
+
+            # Linha de comando
+            if 'Command Line' in details and details['Command Line']:
+                output += f"\n⚡ LINHA DE COMANDO:\n  {details['Command Line']}\n"
+
+        else:
+            output = f"❌ Não foi possível obter detalhes do processo {pid}\n"
+            output += "O processo pode ter terminado ou você não tem permissão para acessá-lo."
+
+        self.details_text.insert(tk.END, output)
+        self.details_text.config(state=tk.DISABLED)
 
     def _create_memory_tab(self, tab_frame: ttk.Frame):
         """Cria aba de memória responsiva e otimizada"""
@@ -491,7 +653,12 @@ class Dashboard(tk.Tk):
 
     def _update_memory_chart(self, data: Dict[str, Any]):
         mem_data = data.get('mem', {})
+        if not isinstance(mem_data, dict):
+            return
+            
         mem_percent = mem_data.get('mem_percent_usage', 0)
+        if not isinstance(mem_percent, (int, float)):
+            mem_percent = 0
 
         metrics_data = {
             'mem_total_chart': mem_data.get('total_memory', 0),
@@ -539,53 +706,104 @@ class Dashboard(tk.Tk):
             self.canvas.draw_idle()
 
     def _update_global_metrics(self, data: Dict[str, Any]):
-        cpu_usage = data.get('cpu', {}).get('usage', 0)
-        process_count = len(data.get('processes', []))
-        thread_count = sum(proc.get('threads', 0) for proc in data.get('processes', []))
+        cpu_data = data.get('cpu', {})
+        cpu_usage = cpu_data.get('usage', 0) if isinstance(cpu_data, dict) else 0
+        
+        # Usar os totais calculados pelo controller
+        total_processes = data.get("total_processes", 0)
+        total_threads = data.get("total_threads", 0)
 
         metrics = {
             'cpu_usage': f"{cpu_usage:.1f}%",
-            'cpu_idle': f"{100 - cpu_usage:.1f}%",  # Corrigido aqui
-            'process_count': f"{process_count}",
-            'thread_count': f"{thread_count}"
+            'cpu_idle': f"{100 - cpu_usage:.1f}%",
+            'process_count': f"{total_processes}",
+            'thread_count': f"{total_threads}"
         }
 
         for key, value in metrics.items():
             if key in self.metric_labels:
                 self.metric_labels[key].config(text=value)
 
-        self.cpu_usage_history.append(cpu_usage)
-        if len(self.cpu_usage_history) > self.MAX_HISTORY_POINTS:
-            self.cpu_usage_history.pop(0)
+        # Atualizar gráfico da CPU
+        if isinstance(cpu_usage, (int, float)):
+            self.cpu_usage_history.append(cpu_usage)
+            if len(self.cpu_usage_history) > self.MAX_HISTORY_POINTS:
+                self.cpu_usage_history.pop(0)
 
-        x_data = range(len(self.cpu_usage_history))
-        self.cpu_line.set_data(x_data, self.cpu_usage_history)
-        self.cpu_ax.set_xlim(0, max(self.MAX_HISTORY_POINTS, len(self.cpu_usage_history)))
+            if len(self.cpu_usage_history) > 1:
+                x_data = range(len(self.cpu_usage_history))
+                self.cpu_line.set_data(x_data, self.cpu_usage_history)
+                self.cpu_ax.set_xlim(0, max(self.MAX_HISTORY_POINTS, len(self.cpu_usage_history)))
 
-        for collection in self.cpu_ax.collections[:]:
-            collection.remove()
+                # Limpar preenchimentos anteriores
+                for collection in self.cpu_ax.collections[:]:
+                    collection.remove()
 
-        self.cpu_ax.fill_between(x_data, self.cpu_usage_history, alpha=0.3, color=self.COLORS['secondary'])
-
-        self.cpu_canvas.draw_idle()
+                self.cpu_ax.fill_between(x_data, self.cpu_usage_history, alpha=0.3, color=self.COLORS['secondary'])
+                self.cpu_canvas.draw_idle()
 
     def _update_process_list(self, data: Dict[str, Any]):
-        tree = self.trees.get('processes')
-        if not tree:
-            return
+        # Atualizar métricas de resumo
+        total_processes = data.get("total_processes", 0)
+        total_threads = data.get("total_threads", 0)
+        
+        if "total_processes" in self.metric_labels:
+            self.metric_labels["total_processes"].config(text=f"{total_processes} processos")
+        if "total_threads" in self.metric_labels:
+            self.metric_labels["total_threads"].config(text=f"{total_threads} threads")
 
-        for item in tree.get_children():
-            tree.delete(item)
+        # Atualizar tabela de processos
+        proc_tree = self.trees.get('processes')
+        if proc_tree:
+            # Limpar dados anteriores
+            for item in proc_tree.get_children():
+                proc_tree.delete(item)
 
-        processes = data.get("top_processes", [])[:self.MAX_PROCESSES_DISPLAY]
-        for proc in processes:
-            tree.insert("", tk.END, values=(
-                proc.get("pid", "N/A"),
-                proc.get("name", "N/A")[:20],
-                format_memory_size(proc.get("memory_kb", 0)),
-                proc.get("threads", "N/A"),
-            ))
+            # Inserir novos dados
+            top_processes = data.get("top_processes", [])
+            if isinstance(top_processes, list):
+                for proc in top_processes:
+                    try:
+                        memory_kb = proc.get("Memory", 0)
+                        if isinstance(memory_kb, (int, float)) and memory_kb > 0:
+                            memory_formatted = format_memory_size(memory_kb * 1024)
+                        else:
+                            memory_formatted = "0 KB"
+                        
+                        proc_tree.insert("", tk.END, values=(
+                            str(proc.get("PID", "N/A")),
+                            str(proc.get("User", "N/A"))[:15],
+                            str(proc.get("Name", "N/A"))[:25],
+                            str(proc.get("Status", "N/A")),
+                            memory_formatted,
+                            str(proc.get("Threads", "N/A"))
+                        ))
+                    except Exception as e:
+                        print(f"Erro ao inserir processo: {e}")
+                        continue
 
+        # Atualizar tabela de threads
+        thread_tree = self.trees.get('threads')
+        if thread_tree:
+            # Limpar dados anteriores
+            for item in thread_tree.get_children():
+                thread_tree.delete(item)
+
+            # Inserir novos dados (limitado para performance)
+            threads = data.get("threads", [])
+            if isinstance(threads, list):
+                for thread in threads[:50]:  # Limitar a 50 threads
+                    try:
+                        thread_tree.insert("", tk.END, values=(
+                            str(thread.get("TID", "N/A")),
+                            str(thread.get("PID", "N/A")),
+                            str(thread.get("User", "N/A"))[:15],
+                            str(thread.get("Name", "N/A"))[:20],
+                            str(thread.get("Status", "N/A"))
+                        ))
+                    except Exception as e:
+                        print(f"Erro ao inserir thread: {e}")
+                        continue
 
     def _update_memory_details(self):
         tree = self.trees.get('memory_details')
@@ -604,16 +822,22 @@ class Dashboard(tk.Tk):
 
 
     def _update_data(self):
-        data = self.controller.get_data()
-        if not data:
-            return
+        try:
+            data = self.controller.get_data()
+            if not data or not isinstance(data, dict):
+                print("Dados não disponíveis ou inválidos")
+                self.after(self.UPDATE_INTERVAL, self._update_data)
+                return
 
-        self._update_global_metrics(data)
-        self._update_process_list(data)
-        self._update_memory_details() 
-        self._update_memory_chart(data)
-
-        self.after(self.UPDATE_INTERVAL, self._update_data)
+            self._update_global_metrics(data)
+            self._update_process_list(data)
+            self._update_memory_details() 
+            self._update_memory_chart(data)
+            
+        except Exception as e:
+            print(f"Erro ao atualizar dados: {e}")
+        finally:
+            self.after(self.UPDATE_INTERVAL, self._update_data)
 
     def _start_updates(self):
         self._update_data()

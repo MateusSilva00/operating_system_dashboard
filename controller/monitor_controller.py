@@ -23,21 +23,43 @@ class MonitorController:
 
     def run(self):
         while self._running:
-            cpu = self.system_info.get_cpu_usage()
-            mem = self.system_info.get_mem_usage()
-            processes = self.process_info.get_process_info()
-            total_processes = self.process_info.count_processes()
-            total_threads = self.process_info.count_threads()
-            top_processes = self.process_info.get_top_processes_by_memory()
+            try:
+                # print("Coletando dados do sistema...")  # Debug
 
-            self.data = {
-                "cpu": cpu,
-                "mem": mem,
-                "processes": processes,
-                "total_processes": total_processes,
-                "total_threads": total_threads,
-                "top_processes": top_processes,
-            }
+                cpu = self.system_info.get_cpu_usage()
+                # print(f"CPU: {cpu}")  # Debug
+
+                mem = self.system_info.get_mem_usage()
+                # print(f"Memória: {type(mem)}")  # Debug
+
+                processes, threads = self.process_info.get_process_info()
+                # print(f"Processos: {len(processes)}, Threads: {len(threads)}")  # Debug
+
+                total_processes = self.process_info.count_processes()
+                total_threads = self.process_info.count_threads()
+                # print(f"Total processos: {total_processes}, Total threads: {total_threads}")  # Debug
+
+                top_processes = self.process_info.get_top_processes_by_memory()
+                # print(f"Top processos: {len(top_processes)}")  # Debug
+
+                self.data = {
+                    "cpu": cpu,
+                    "mem": mem,
+                    "processes": processes,
+                    "threads": threads,
+                    "total_processes": total_processes,
+                    "total_threads": total_threads,
+                    "top_processes": top_processes,
+                }
+
+                # print("Dados atualizados com sucesso")  # Debug
+
+            except Exception as e:
+                # print(f"Erro na coleta de dados: {e}")
+                import traceback
+
+                traceback.print_exc()
+
             time.sleep(self.refresh_interval)
 
     def get_data(self) -> dict:
