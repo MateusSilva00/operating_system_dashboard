@@ -1,13 +1,9 @@
-from controller.monitor_controller import MonitorController
+from view.textual_view import DashboardApp
 
 
 def main():
-    try:
-        controller = MonitorController(refresh_interval=1)
-        controller.start()
-    except KeyboardInterrupt:
-        print("Exiting dashboard...")
-        controller.stop()
+    app = DashboardApp()
+    app.run()
 
 
 if __name__ == "__main__":

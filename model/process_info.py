@@ -45,6 +45,41 @@ def get_top_processes_by_memory(processes: list, top_n: int = 5) -> list:
     return sorted_processes[:top_n]
 
 
+def get_process_details(pid: str) -> dict:
+    try:
+        with open(f"{PROC_DIR}/{pid}/status", "r") as file:
+            status_lines = file.read().splitlines()
+            status_data = {
+                line.split(":")[0]: line.split(":", 1)[1].strip()
+                for line in status_lines
+            }
+
+        with open(f"{PROC_DIR}/{pid}/cmdline", "r") as file:
+            cmd = file.read().replace("\0", " ").strip()
+
+        with open(f"{PROC_DIR}/{pid}/statm", "r") as file:
+            statm = file.read().split()
+
+        return {
+            "PID": pid,
+            "Name": status_data.get("Name", "?"),
+            "State": status_data.get("State", "?"),
+            "UID": status_data.get("Uid", "?").split()[0],
+            "Threads": status_data.get("Threads", "0"),
+            "VmSize": status_data.get("VmSize", "0 kB"),
+            "VmRSS": status_data.get("VmRSS", "0 kB"),
+            "Command": cmd,
+            "Statm": {
+                "size": int(statm[0]) * 4,
+                "resident": int(statm[1]) * 4,
+                "shared": int(statm[2]) * 4,
+            },
+        }
+
+    except (FileNotFoundError, ValueError):
+        return {"PID": pid, "Error": "Process not found or inaccessible"}
+
+
 if __name__ == "__main__":
     processes = get_process_info()
     a, b = count_processes_and_threads(processes)

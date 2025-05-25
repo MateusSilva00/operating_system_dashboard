@@ -34,7 +34,7 @@ def print_dashboard(
     print(f"Total de Threads: {total_threads}")
 
     print("Top 5 Processos por Uso de Memória:")
-    print(f"{'PID':>6} {'Nome':<15} {'Threads':<10} {'Memória (MB))':<15}")
+    print(f"{'PID':>6} {'Nome':<15} {'Threads':<10} {'Memória (MB)':<15}")
     print("=" * 70)
     for proc in processes:
         mem_mb = round(proc["memory_kb"] / 1024, 2)
@@ -45,3 +45,24 @@ def print_dashboard(
     print(*"=" * 70, sep="")
     print("Press Ctrl+C to exit")
     print(*"=" * 70, sep="")
+
+
+def print_process_details(process: dict):
+    clear()
+    if not process:
+        print("❌ Processo não encontrado ou já terminou.")
+        return
+
+    print(f"=== Detalhes do Processo PID {process['PID']} ===\n")
+    print(f"Nome         : {process['Name']}")
+    print(f"Estado       : {process['State']}")
+    print(f"UID          : {process['UID']}")
+    print(f"Threads      : {process['Threads']}")
+    print(f"Comando      : {process['Command']}")
+    print(f"Memória Total: {process['VmSize']}")
+    print(f"Mem. Residente: {process['VmRSS']}")
+    print(
+        f"Memória statm: {process['Statm']['resident']} KB residente | {process['Statm']['shared']} KB compartilhada"
+    )
+    print("\n[Pressione ENTER para voltar ao dashboard]")
+    input()
