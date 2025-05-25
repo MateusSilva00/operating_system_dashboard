@@ -20,6 +20,8 @@ class MonitorController:
 
     def stop(self):
         self._running = False
+        if self.thread.is_alive():
+            self.thread.join(timeout=2)
 
     def run(self):
         while self._running:

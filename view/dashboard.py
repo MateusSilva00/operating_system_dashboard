@@ -1,3 +1,5 @@
+import signal
+import sys
 import tkinter as tk
 from tkinter import ttk
 from typing import Any, Dict, List
@@ -34,10 +36,13 @@ class Dashboard(tk.Tk):
         super().__init__()
         self.controller = controller
         self.mem_usage_history: List[float] = []
-        self.show_all_memory_details = False  # Estado do botão "Exibir Mais"
+        self.show_all_memory_details = False
         
         self.metric_labels: Dict[str, ttk.Label] = {}
         self.trees: Dict[str, ttk.Treeview] = {}
+        
+        # Configurar tratamento de sinais
+        self._setup_signal_handlers()
         
         self._setup_window()
         self._setup_matplotlib()
@@ -45,10 +50,45 @@ class Dashboard(tk.Tk):
         self._create_interface()
         self._start_updates()
 
+    def _setup_signal_handlers(self):
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        
+        # Bind para ESC e Ctrl+C na interface
+        self.bind('<Control-c>', self._on_exit_keypress)
+        self.bind('<Escape>', self._on_exit_keypress)
+        self.focus_set()  # Necessário para capturar eventos de teclado
+
+    def _signal_handler(self, signum, frame):
+        """Handler para sinais do sistema (Ctrl+C, etc.)"""
+        self._cleanup_and_exit()
+
+    def _on_exit_keypress(self, event=None):
+        """Handler para teclas de saída (Ctrl+C, ESC)"""
+        self._cleanup_and_exit()
+
+    def _cleanup_and_exit(self):
+        # Parar o controller
+        if hasattr(self, 'controller'):
+            self.controller.stop()
+            
+        # Fechar figuras matplotlib
+        if hasattr(self, 'cpu_fig'):
+            plt.close(self.cpu_fig)
+        if hasattr(self, 'fig'):
+            plt.close(self.fig)
+
+        self.quit()
+        self.destroy()
+        sys.exit(0)
+
     def _setup_window(self):
         self.title(self.WINDOW_TITLE)
         self.geometry(self.WINDOW_SIZE)
         self.configure(bg=self.BACKGROUND_COLOR)
+        
+        # Configurar comportamento ao fechar janela
+        self.protocol("WM_DELETE_WINDOW", self._cleanup_and_exit)
 
     def _setup_matplotlib(self):
         plt.style.use("dark_background")
@@ -766,7 +806,7 @@ class Dashboard(tk.Tk):
                     try:
                         memory_kb = proc.get("Memory", 0)
                         if isinstance(memory_kb, (int, float)) and memory_kb > 0:
-                            memory_formatted = format_memory_size(memory_kb * 1024)
+                            memory_formatted = format_memory_size(memory_kb)
                         else:
                             memory_formatted = "0 KB"
                         
@@ -792,7 +832,7 @@ class Dashboard(tk.Tk):
             # Inserir novos dados (limitado para performance)
             threads = data.get("threads", [])
             if isinstance(threads, list):
-                for thread in threads[:50]:  # Limitar a 50 threads
+                for thread in threads[:300]:  # Aumentar limite para 100 threads
                     try:
                         thread_tree.insert("", tk.END, values=(
                             str(thread.get("TID", "N/A")),
