@@ -2,13 +2,13 @@ import os
 
 PROC_DIR = "/proc"
 
+
 class ProcessInfo:
     def __init__(self):
         self.processes = self.get_process_info()
         self.total_processes = self.count_processes()
         self.total_threads = self.count_threads()
         self.top_processes = self.get_top_processes_by_memory()
-
 
     def get_process_info(self) -> list:
         processes = []
@@ -21,7 +21,8 @@ class ProcessInfo:
                 with open(f"{PROC_DIR}/{pid}/status", "r") as file:
                     info = file.read().splitlines()
                     data = {
-                        line.split(":")[0]: line.split(":", 1)[1].strip() for line in info
+                        line.split(":")[0]: line.split(":", 1)[1].strip()
+                        for line in info
                     }
 
                     processes.append(
@@ -42,16 +43,16 @@ class ProcessInfo:
     def count_processes(self) -> int:
         total_processes = len(self.processes)
         return total_processes
-    
+
     def count_threads(self) -> int:
         total_threads = sum(proc["threads"] for proc in self.processes)
         return total_threads
 
-
     def get_top_processes_by_memory(self, top_n: int = 5) -> list:
-        sorted_processes = sorted(self.processes, key=lambda x: x["memory_kb"], reverse=True)
+        sorted_processes = sorted(
+            self.processes, key=lambda x: x["memory_kb"], reverse=True
+        )
         return sorted_processes[:top_n]
-
 
     def get_process_details(self, pid: str) -> dict:
         try:
@@ -95,4 +96,6 @@ if __name__ == "__main__":
     top_processes = process.get_top_processes_by_memory()
     print("Top Processes by Memory Usage:")
     for proc in top_processes:
-        print(f"PID: {proc['pid']}, Name: {proc['name']}, Memory: {proc['memory_kb']} KB")
+        print(
+            f"PID: {proc['pid']}, Name: {proc['name']}, Memory: {proc['memory_kb']} KB"
+        )

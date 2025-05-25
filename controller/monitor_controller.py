@@ -12,12 +12,12 @@ class MonitorController:
         self.thread = threading.Thread(target=self.run, daemon=True)
         self.system_info = MemoryInfo()
         self.process_info = ProcessInfo()
-        self.data: dict  = {}
+        self.data: dict = {}
 
     def start(self):
         self._running = True
         self.thread.start()
-    
+
     def stop(self):
         self._running = False
 

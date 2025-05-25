@@ -12,7 +12,6 @@ class MemoryInfo:
         self.cpu_usage = self.get_cpu_usage()
 
     def get_cpu_usage(self) -> dict:
-
         with open("/proc/stat", "r") as f:
             lines = f.readlines()
             parts = lines[0].split()
@@ -22,7 +21,6 @@ class MemoryInfo:
         if self._last_cpu_usage is None:
             self._last_cpu_usage = (total_time, idle_time)
             return {"usage": 0, "total": total_time, "idle": idle_time}
-
 
         last_total, last_idle = self._last_cpu_usage
         delta_total = total_time - last_total
@@ -55,7 +53,7 @@ class MemoryInfo:
         buffers = self.mem_info["Buffers"]
         cached = self.mem_info["Cached"]
 
-        used_memory = mem_total - mem_free
+        used_memory = mem_total - mem_free - buffers - cached
         cached_memory = buffers + cached
 
         return {
@@ -63,7 +61,11 @@ class MemoryInfo:
             "cached_memory": cached_memory,
             "available_memory": mem_available,
             "total_memory": mem_total,
+            "free_memory": mem_free,
+            "buffers": buffers,
+            "cached": cached,
         }
+
 
 if __name__ == "__main__":
     mem_info_obj = MemoryInfo()
@@ -83,5 +85,3 @@ if __name__ == "__main__":
     print(f"Usage: {cpu_usage['usage']:.2f}%")
     print(f"Total Time: {cpu_usage['total']} ticks")
     print(f"Idle Time: {cpu_usage['idle']} ticks")
-
-
