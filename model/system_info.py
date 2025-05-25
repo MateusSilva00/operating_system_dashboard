@@ -3,17 +3,18 @@ import time
 CPU_PATH = "/proc/stat"
 MEM_PATH = "/proc/meminfo"
 
-_last_cpu_usage = None # to store the last CPU usage for comparison
+_last_cpu_usage = None  # to store the last CPU usage for comparison
 
-def get_cpu_usage():
+
+def get_cpu_usage() -> dict:
     global _last_cpu_usage
-    
+
     with open("/proc/stat", "r") as f:
         lines = f.readlines()
         parts = lines[0].split()
         total_time = sum(map(int, parts[1:]))
         idle_time = int(parts[4])
-    
+
     if _last_cpu_usage is None:
         _last_cpu_usage = (total_time, idle_time)
         time.sleep(0.1)  # wait for a short time to get a new reading
@@ -27,18 +28,18 @@ def get_cpu_usage():
     _last_cpu_usage = (total_time, idle_time)
 
     if delta_total == 0:
-        return {"usage": 0}    
-        
+        return {"usage": 0}
+
     usage = (delta_total - delta_idle) / delta_total * 100
     return {"usage": usage, "total": total_time, "idle": idle_time}
 
-def get_memory_info():
+
+def get_memory_info() -> dict:
     info = {}
     with open(MEM_PATH, "r") as f:
         for line in f:
             key, value = line.split(":")
             info[key.strip()] = int(value.strip().split()[0])
-    
 
     return {
         "MemTotal": info.get("MemTotal", 0),

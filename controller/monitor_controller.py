@@ -1,6 +1,11 @@
 import threading
 import time
 
+from model.process_info import (
+    count_processes_and_threads,
+    get_process_info,
+    get_top_processes_by_memory,
+)
 from model.system_info import get_cpu_usage, get_memory_info
 from view.terminal_view import print_dashboard
 
@@ -16,14 +21,23 @@ class MonitorController:
         self.thread.start()
         while self._running:
             time.sleep(0.1)  # Keep the main thread alive
-        
-    
+
     def stop(self):
         self._running = False
-    
+
     def run(self):
         while self._running:
             cpu = get_cpu_usage()
             memory = get_memory_info()
-            print_dashboard(cpu, memory)
+            processes = get_process_info()
+            process_thrads = count_processes_and_threads(processes)
+            top_procs = get_top_processes_by_memory(processes, 5)
+
+            print_dashboard(
+                cpu_usage=cpu,
+                memory_info=memory,
+                total_processes=process_thrads["total_processes"],
+                total_threads=process_thrads["total_threads"],
+                processes=top_procs,
+            )
             time.sleep(self.refresh_interval)
