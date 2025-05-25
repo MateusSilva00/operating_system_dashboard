@@ -7,7 +7,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from controller.monitor_controller import MonitorController
 from view.utils import (format_memory_size, format_memory_value_only,
-                        get_memory_unit, kb_to_gb)
+                        get_memory_unit)
 
 
 class Dashboard(tk.Tk):
@@ -261,85 +261,218 @@ class Dashboard(tk.Tk):
         self._create_treeview(container, columns, "processes")
 
     def _create_memory_tab(self, tab_frame: ttk.Frame):
-        """Cria aba de memória"""
+        """Cria aba de memória responsiva e otimizada"""
         container = tk.Frame(tab_frame, bg=self.BACKGROUND_COLOR)
-        container.pack(fill="both", expand=True, padx=20, pady=20)
+        container.pack(fill="both", expand=True, padx=15, pady=15)
 
-        title = ttk.Label(container, text="💾 ANÁLISE DE MEMÓRIA", style="Title.TLabel")
-        title.pack(anchor="w", pady=(0, 20))
+        # Header da aba
+        header_frame = tk.Frame(container, bg=self.BACKGROUND_COLOR)
+        header_frame.pack(fill="x", pady=(0, 15))
+        
+        title = ttk.Label(header_frame, text="💾 ANÁLISE DE MEMÓRIA", style="Title.TLabel")
+        title.pack(side="left")
 
+        # Layout principal responsivo
         main_layout = tk.Frame(container, bg=self.BACKGROUND_COLOR)
         main_layout.pack(fill="both", expand=True)
 
-        # Lado esquerdo - Detalhes
-        self._create_memory_details(main_layout)
+        # Painel esquerdo: Métricas (35% da largura)
+        self._create_memory_metrics_panel(main_layout)
         
-        # Lado direito - Métricas e gráfico
-        self._create_memory_metrics_and_chart(main_layout)
+        # Painel direito: Gráfico (65% da largura)
+        self._create_memory_chart_panel(main_layout)
 
-    def _create_memory_details(self, parent: tk.Widget):
-        """Cria seção de detalhes da memória"""
-        left_frame = ttk.Frame(parent, style="Card.TFrame")
-        left_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
+    def _create_memory_metrics_panel(self, parent: tk.Widget):
+        """Painel de métricas otimizado e responsivo"""
+        metrics_frame = ttk.Frame(parent, style="Card.TFrame")
+        metrics_frame.pack(side="left", fill="both", padx=(0, 8))
+        metrics_frame.configure(width=350)
+        metrics_frame.pack_propagate(False)
 
-        details_title = ttk.Label(left_frame, text="📊 DETALHES", style="Info.TLabel")
-        details_title.pack(anchor="w", padx=15, pady=15)
+        # Header do painel
+        header = ttk.Label(metrics_frame, text="📊 MÉTRICAS PRINCIPAIS", style="Info.TLabel")
+        header.pack(anchor="w", padx=15, pady=15)
 
-        tree_container = tk.Frame(left_frame, bg=self.COLORS['card'])
-        tree_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        # Container scrollável para métricas
+        metrics_scroll = tk.Frame(metrics_frame, bg=self.COLORS['card'])
+        metrics_scroll.pack(fill="both", expand=True, padx=15, pady=(0, 15))
 
-        columns = ("PROPRIEDADE", "VALOR")
-        self._create_treeview(tree_container, columns, "memory_details")
+        # Métricas organizadas por grupos
+        self._create_metric_groups(metrics_scroll)
 
-    def _create_memory_metrics_and_chart(self, parent: tk.Widget):
-        """Cria métricas e gráfico de memória"""
-        right_frame = ttk.Frame(parent, style="Card.TFrame")
-        right_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
+    def _create_metric_groups(self, parent: tk.Widget):
+        """Cria grupos de métricas organizados"""
+        groups = {
+            "💽 MEMÓRIA FÍSICA": [
+                ("Total", "mem_total_chart"),
+                ("Em Uso", "mem_used_chart"), 
+                ("Livre", "mem_free_chart"),
+                ("% Uso", "mem_percent")
+            ],
+            "🔄 CACHE/BUFFER": [
+                ("Cache", "mem_cache"),
+                ("Buffers", "mem_buffers")
+            ],
+            "💿 SWAP": [
+                ("Swap Total", "mem_virtual")
+            ]
+        }
 
-        metrics_title = ttk.Label(
-            right_frame, text="📈 MÉTRICAS EM TEMPO REAL", style="Info.TLabel"
-        )
-        metrics_title.pack(anchor="w", padx=15, pady=15)
+        for group_name, metrics in groups.items():
+            # Título do grupo
+            group_frame = tk.Frame(parent, bg=self.COLORS['card'])
+            group_frame.pack(fill="x", pady=(5, 10))
+            
+            group_label = ttk.Label(group_frame, text=group_name, 
+                                  font=("JetBrains Mono", 11, "bold"),
+                                  foreground=self.COLORS['primary'],
+                                  background=self.COLORS['card'])
+            group_label.pack(anchor="w", pady=(0, 5))
 
-        # Métricas
-        metrics_container = tk.Frame(right_frame, bg=self.COLORS['card'])
-        metrics_container.pack(fill="x", padx=15, pady=(0, 15))
+            # Métricas do grupo
+            for label, key in metrics:
+                self._create_compact_metric(group_frame, label, key)
 
-        self._create_metric_card(metrics_container, "Uso de Memória", "mem_percent", "%")
-        self._create_metric_card(metrics_container, "Memória Livre", "mem_free_chart", "GB")
+    def _create_compact_metric(self, parent: tk.Widget, title: str, key: str):
+        """Cria métrica compacta e responsiva"""
+        metric_frame = tk.Frame(parent, bg=self.COLORS['dark'])
+        metric_frame.pack(fill="x", pady=2, padx=5)
 
-        # Gráfico
-        self._create_memory_chart(right_frame)
+        # Layout flex
+        content_frame = tk.Frame(metric_frame, bg=self.COLORS['dark'])
+        content_frame.pack(fill="x", padx=8, pady=6)
 
-    def _create_memory_chart(self, parent: tk.Widget):
-        """Cria gráfico de uso de memória"""
-        graph_container = tk.Frame(parent, bg=self.COLORS['card'])
+        title_label = ttk.Label(content_frame, text=title,
+                               font=("JetBrains Mono", 10),
+                               foreground=self.COLORS['text'],
+                               background=self.COLORS['dark'])
+        title_label.pack(side="left")
+
+        value_label = ttk.Label(content_frame, text="--",
+                               font=("JetBrains Mono", 10, "bold"),
+                               foreground=self.COLORS['secondary'],
+                               background=self.COLORS['dark'])
+        value_label.pack(side="right")
+
+        self.metric_labels[key] = value_label
+
+    def _create_memory_chart_panel(self, parent: tk.Widget):
+        """Painel do gráfico otimizado e responsivo"""
+        chart_frame = ttk.Frame(parent, style="Card.TFrame")
+        chart_frame.pack(side="right", fill="both", expand=True, padx=(8, 0))
+
+        # Header do gráfico
+        chart_header = tk.Frame(chart_frame, bg=self.COLORS['card'])
+        chart_header.pack(fill="x", padx=15, pady=15)
+
+        chart_title = ttk.Label(chart_header, text="📈 MONITOR EM TEMPO REAL", style="Info.TLabel")
+        chart_title.pack(side="left")
+
+        # Container do gráfico responsivo
+        graph_container = tk.Frame(chart_frame, bg=self.COLORS['card'])
         graph_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
 
-        self.fig, self.ax = plt.subplots(figsize=(5, 4), facecolor=self.COLORS['card'])
+        # Configuração do matplotlib responsivo
+        self.fig, self.ax = plt.subplots(figsize=(9, 6), facecolor=self.COLORS['card'])
         self.ax.set_facecolor(self.COLORS['dark'])
-        self.ax.set_title(
-            "USO DE MEMÓRIA (%)", 
-            color=self.COLORS['primary'], 
-            fontsize=12, 
-            fontweight="bold"
-        )
-        self.ax.set_ylim(0, 100)
-        self.ax.set_xlabel("TEMPO (s)", color=self.COLORS['text'], fontsize=10)
-        self.ax.set_ylabel("USO (%)", color=self.COLORS['text'], fontsize=10)
-        self.ax.tick_params(colors=self.COLORS['text'], labelsize=8)
-        self.ax.grid(True, alpha=0.3, color=self.COLORS['grid'])
+        
+        # Estilo do gráfico otimizado
+        self._configure_chart_style()
 
-        self.line, = self.ax.plot([], [], color=self.COLORS['secondary'], linewidth=2, alpha=0.8)
-
+        # Canvas responsivo
         self.canvas = FigureCanvasTkAgg(self.fig, master=graph_container)
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
+
+    def _configure_chart_style(self):
+        """Configura estilo do gráfico de forma otimizada"""
+        self.ax.set_title("USO DE MEMÓRIA RAM (%)", 
+                         color=self.COLORS['primary'], 
+                         fontsize=16, fontweight="bold", pad=20)
+        
+        self.ax.set_ylim(0, 100)
+        self.ax.set_xlabel("Tempo (s)", color=self.COLORS['text'], fontsize=12)
+        self.ax.set_ylabel("Uso (%)", color=self.COLORS['text'], fontsize=12)
+        self.ax.tick_params(colors=self.COLORS['text'], labelsize=10)
+        self.ax.grid(True, alpha=0.2, color=self.COLORS['grid'], linestyle=':')
+
+        # Linha principal otimizada
+        self.line, = self.ax.plot([], [], color=self.COLORS['secondary'], 
+                                 linewidth=2.5, alpha=0.9, antialiased=True)
+
+        # Zonas de alerta
+        self.ax.axhspan(80, 90, alpha=0.1, color='orange', label='Atenção')
+        self.ax.axhspan(90, 100, alpha=0.1, color='red', label='Crítico')
+
+        # Legenda otimizada
+        self.ax.legend(['Uso da Memória', 'Zona de Atenção', 'Zona Crítica'],
+                      loc='upper left', fontsize=9, framealpha=0.8)
+
+    # Remover métodos obsoletos e simplificar atualizações
+    def _update_memory_chart(self, data: Dict[str, Any]):
+        """Atualização otimizada do gráfico e métricas"""
+        try:
+            mem_data = data.get('mem', {})
+            mem_percent = mem_data.get('mem_percent_usage', 0)
+
+            # Atualizar métricas de forma unificada
+            metrics_data = {
+                'mem_total_chart': mem_data.get('total_memory', 0),
+                'mem_used_chart': mem_data.get('used_memory', 0),
+                'mem_free_chart': mem_data.get('free_memory', 0),
+                'mem_percent': mem_percent,
+                'mem_cache': mem_data.get('cached_memory', 0),
+                'mem_buffers': mem_data.get('buffers', 0),
+                'mem_virtual': mem_data.get('swap_total', 0)
+            }
+
+            self._update_all_metrics(metrics_data)
+            self._update_chart_optimized(mem_percent)
+
+        except Exception as e:
+            print(f"Erro ao atualizar gráfico de memória: {e}")
+
+    def _update_all_metrics(self, metrics_data: Dict[str, float]):
+        """Atualiza todas as métricas de forma otimizada"""
+        for key, value in metrics_data.items():
+            if key in self.metric_labels:
+                if key == 'mem_percent':
+                    text = f"{value:.1f}%"
+                else:
+                    formatted_value = format_memory_value_only(value)
+                    unit = get_memory_unit(value)
+                    text = f"{formatted_value} {unit}"
+                
+                self.metric_labels[key].config(text=text)
+
+    def _update_chart_optimized(self, mem_percent: float):
+        """Atualização otimizada do gráfico"""
+        self.mem_usage_history.append(mem_percent)
+        if len(self.mem_usage_history) > self.MAX_HISTORY_POINTS:
+            self.mem_usage_history.pop(0)
+
+        if len(self.mem_usage_history) > 1:
+            x_data = range(len(self.mem_usage_history))
+            self.line.set_data(x_data, self.mem_usage_history)
+            self.ax.set_xlim(0, max(self.MAX_HISTORY_POINTS, len(self.mem_usage_history)))
+
+            # Limpar preenchimentos anteriores
+            for collection in self.ax.collections[:]:
+                if hasattr(collection, '_original_facecolor'):
+                    collection.remove()
+
+            # Preenchimento suave
+            self.ax.fill_between(x_data, self.mem_usage_history, alpha=0.3, 
+                               color=self.COLORS['secondary'])
+
+            # Redesenho eficiente
+            self.canvas.draw_idle()
 
     def _update_global_metrics(self, data: Dict[str, Any]):
         """Atualiza métricas da aba global"""
         try:
             cpu_usage = data.get('cpu', {}).get('usage', 0)
-            self.metric_labels['cpu_usage'].config(text=f"{cpu_usage:.1f} %")
+            if 'cpu_usage' in self.metric_labels:
+                self.metric_labels['cpu_usage'].config(text=f"{cpu_usage:.1f} %")
 
             mem_data = data.get('mem', {})
             total = mem_data.get('total_memory', 0)
@@ -388,7 +521,7 @@ class Dashboard(tk.Tk):
             print(f"Erro ao atualizar lista de processos: {e}")
 
     def _update_memory_details(self):
-        """Atualiza detalhes da memória"""
+        """Atualiza detalhes da memória (se necessário)"""
         try:
             tree = self.trees.get('memory_details')
             if not tree:
@@ -408,49 +541,6 @@ class Dashboard(tk.Tk):
         except Exception as e:
             print(f"Erro ao atualizar detalhes da memória: {e}")
 
-    def _update_memory_chart(self, data: Dict[str, Any]):
-        """Atualiza gráfico de memória"""
-        try:
-            mem_data = data.get('mem', {})
-            total = mem_data.get('total_memory', 1)  # Evitar divisão por zero
-            used = mem_data.get('used_memory', 0)
-            
-            mem_percent = (used / total) * 100 if total > 0 else 0
-            free = total - used
-
-            # Atualizar métricas
-            if 'mem_percent' in self.metric_labels:
-                self.metric_labels['mem_percent'].config(text=f"{mem_percent:.1f} %")
-            
-            if 'mem_free_chart' in self.metric_labels:
-                free_value = format_memory_value_only(free)
-                free_unit = get_memory_unit(free)
-                self.metric_labels['mem_free_chart'].config(text=f"{free_value} {free_unit}")
-
-            # Atualizar histórico e gráfico
-            self.mem_usage_history.append(mem_percent)
-            if len(self.mem_usage_history) > self.MAX_HISTORY_POINTS:
-                self.mem_usage_history.pop(0)
-
-            x_data = range(len(self.mem_usage_history))
-            self.line.set_data(x_data, self.mem_usage_history)
-            self.ax.set_xlim(0, max(self.MAX_HISTORY_POINTS, len(self.mem_usage_history)))
-
-            # Limpar preenchimento anterior
-            for collection in self.ax.collections:
-                collection.remove()
-
-            # Novo preenchimento
-            self.ax.fill_between(
-                x_data, self.mem_usage_history, 
-                alpha=0.3, color=self.COLORS['secondary']
-            )
-
-            self.canvas.draw()
-
-        except (KeyError, ValueError, TypeError, ZeroDivisionError) as e:
-            print(f"Erro ao atualizar gráfico de memória: {e}")
-
     def _update_data(self):
         """Atualiza todos os dados da interface"""
         try:
@@ -460,7 +550,7 @@ class Dashboard(tk.Tk):
 
             self._update_global_metrics(data)
             self._update_process_list(data)
-            self._update_memory_details()
+            self._update_memory_details()  # Restaurado para compatibilidade
             self._update_memory_chart(data)
 
         except Exception as e:

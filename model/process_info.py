@@ -48,7 +48,7 @@ class ProcessInfo:
         total_threads = sum(proc["threads"] for proc in self.processes)
         return total_threads
 
-    def get_top_processes_by_memory(self, top_n: int = 5) -> list:
+    def get_top_processes_by_memory(self, top_n: int = 20) -> list:
         sorted_processes = sorted(
             self.processes, key=lambda x: x["memory_kb"], reverse=True
         )

@@ -1,5 +1,3 @@
-import time
-
 CPU_PATH = "/proc/stat"
 MEM_PATH = "/proc/meminfo"
 
@@ -43,27 +41,31 @@ class MemoryInfo:
                 info[key.strip()] = int(value.strip().split()[0])
 
         return info
+        
 
     def get_mem_usage(self) -> dict:
-        mem_info = self.get_memory_info()
+        self.mem_info = self.get_memory_info()
 
         mem_total = self.mem_info["MemTotal"]
         mem_free = self.mem_info["MemFree"]
         mem_available = self.mem_info["MemAvailable"]
         buffers = self.mem_info["Buffers"]
         cached = self.mem_info["Cached"]
+        swap_total = self.mem_info["SwapTotal"]
 
         used_memory = mem_total - mem_free - buffers - cached
-        cached_memory = buffers + cached
+        mem_percent_usage = (used_memory / mem_total) * 100
 
         return {
             "used_memory": used_memory,
-            "cached_memory": cached_memory,
+            "cached_memory": cached,
             "available_memory": mem_available,
             "total_memory": mem_total,
+            "swap_total": swap_total,
             "free_memory": mem_free,
             "buffers": buffers,
             "cached": cached,
+            "mem_percent_usage": mem_percent_usage,
         }
 
 
