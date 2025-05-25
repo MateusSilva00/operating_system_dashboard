@@ -20,12 +20,11 @@ class MemoryInfo:
             idle_time = int(parts[4])
 
         if self._last_cpu_usage is None:
-            self_last_cpu_usage = (total_time, idle_time)
-            time.sleep(0.1)  # wait for a short time to get a new reading
-
+            self._last_cpu_usage = (total_time, idle_time)
             return {"usage": 0, "total": total_time, "idle": idle_time}
 
-        last_total, last_idle = self_last_cpu_usage
+
+        last_total, last_idle = self._last_cpu_usage
         delta_total = total_time - last_total
         delta_idle = idle_time - last_idle
 
@@ -46,7 +45,10 @@ class MemoryInfo:
                 info[key.strip()] = int(value.strip().split()[0])
 
         return info
+
     def get_mem_usage(self) -> dict:
+        mem_info = self.get_memory_info()
+
         mem_total = self.mem_info["MemTotal"]
         mem_free = self.mem_info["MemFree"]
         mem_available = self.mem_info["MemAvailable"]

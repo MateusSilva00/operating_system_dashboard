@@ -1,7 +1,11 @@
 import tkinter as tk
 from tkinter import ttk
 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 from controller.monitor_controller import MonitorController
+from view.utils import kb_to_gb
 
 
 class Dashboard(tk.Tk):
@@ -64,7 +68,30 @@ class Dashboard(tk.Tk):
         for col in columns:
             self.memory_tree.heading(col, text=col)
             self.memory_tree.column(col, anchor=tk.CENTER)
-        self.memory_tree.pack(expand=True, fill="both")
+        self.memory_tree.pack(side=tk.LEFT, expand=True, fill="both")
+
+        # Frame para informações adicionais e gráfico
+        right_frame = ttk.Frame(self.memory_tab)
+        right_frame.pack(side=tk.RIGHT, expand=True, fill="both")
+
+        # Labels para porcentagem e memória livre em GB
+        self.mem_percent_label = ttk.Label(right_frame, text="Uso de Memória: ")
+        self.mem_percent_label.pack(pady=10)
+
+        self.mem_free_gb_label = ttk.Label(right_frame, text="Memória Livre (GB): ")
+        self.mem_free_gb_label.pack(pady=10)
+
+        # Gráfico de uso de memória
+        self.mem_usage_history = []
+        self.fig, self.ax = plt.subplots(figsize=(4, 3))
+        self.ax.set_title("Uso de Memória (%)")
+        self.ax.set_ylim(0, 100)
+        self.ax.set_xlabel("Tempo (s)")
+        self.ax.set_ylabel("Uso (%)")
+        self.line, = self.ax.plot([], [], color='blue')
+
+        self.canvas = FigureCanvasTkAgg(self.fig, master=right_frame)
+        self.canvas.get_tk_widget().pack(expand=True, fill="both")
 
 
     def update_data(self):
@@ -72,19 +99,34 @@ class Dashboard(tk.Tk):
 
         if data:
             self.cpu_label.config(text=f"Uso da CPU: {data['cpu']['usage']:.2f}%")
-            self.mem_total_label.config(text=f"Memória Total: {data['memory']['total_memory']} kB")
-            self.mem_used_label.config(text=f"Memória Usada: {data['memory']['used_memory']} kB")
-            self.mem_available_label.config(text=f"Memória Disponível: {data['memory']['available_memory']} kB")
-
-            for i in self.process_tree.get_children():
-                self.process_tree.delete(i)
-            for proc in data['top_procs']:
-                self.process_tree.insert("", tk.END, values=(proc["pid"], proc["name"], proc["memory_kb"], proc["threads"]))
+            self.mem_total_label.config(text=f"Memória Total: {data['mem']['total_memory']} kB")
+            self.mem_used_label.config(text=f"Memória Usada: {data['mem']['used_memory']} kB")
+            self.mem_available_label.config(text=f"Memória Disponível: {data['mem']['available_memory']} kB")
 
             for i in self.memory_tree.get_children():
                 self.memory_tree.delete(i)
-            mem_info = self.controller.memory_info.get_memory_info()
-            for key, value in mem_info.items():
-                self.memory_tree.insert("", tk.END, values=(key, value))
 
-        self.after(1000, self.update_data)
+            mem_info = self.controller.system_info.get_memory_info()
+            for key, value in mem_info.items():
+                self.memory_tree.insert("", tk.END, values=(key, f"{value} kB"))
+
+            # Calcula porcentagem de uso e memória livre em GB
+            mem_total = data['mem']['total_memory']
+            mem_used = data['mem']['used_memory']
+            mem_free = mem_total - mem_used
+            mem_percent = (mem_used / mem_total) * 100
+
+            self.mem_percent_label.config(text=f"Uso de Memória: {mem_percent:.2f}%")
+            self.mem_free_gb_label.config(text=f"Memória Livre (GB): {kb_to_gb(mem_free)} GB")
+
+            # Atualiza gráfico
+            self.mem_usage_history.append(mem_percent)
+            if len(self.mem_usage_history) > 60:
+                self.mem_usage_history.pop(0)
+
+            self.line.set_data(range(len(self.mem_usage_history)), self.mem_usage_history)
+            self.ax.set_xlim(0, max(60, len(self.mem_usage_history)))
+            self.canvas.draw()
+
+
+            self.after(1000, self.update_data)
