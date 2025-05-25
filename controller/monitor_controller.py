@@ -1,3 +1,8 @@
+"""
+Monitor Controller - Controlador principal do dashboard
+Responsável pela coleta de dados do sistema e disponibilizá-los para a interface
+"""
+
 import threading
 import time
 
@@ -6,58 +11,73 @@ from model.system_info import MemoryInfo
 
 
 class MonitorController:
+    """
+    Executa em thread separada para não bloquear a interface gráfica
+    """
+
     def __init__(self, refresh_interval: int = 1):
-        self.refresh_interval = refresh_interval
-        self._running = False
+        self.refresh_interval = refresh_interval  # Frequência de atualização dos dados
+        self._running = False  # Flag para controlar execução da thread
+
+        # Thread daemon para coleta de dados em background
         self.thread = threading.Thread(target=self.run, daemon=True)
-        self.system_info = MemoryInfo()
-        self.process_info = ProcessInfo()
+
+        # Instâncias dos modelos de dados
+        self.system_info = MemoryInfo()  # Coleta informações de CPU e memória
+        self.process_info = ProcessInfo()  # Coleta informações de processos e threads
+
+        # Dicionário para todos dados coletados
         self.data: dict = {}
 
     def start(self):
+        # Inicia a thread de coleta de dados
         self._running = True
         self.thread.start()
 
     def stop(self):
+        # para a thread de coleta de dados aguarda até 2 segundos para a thread terminar
+
         self._running = False
         if self.thread.is_alive():
             self.thread.join(timeout=2)
 
     def run(self):
+        """
+        loop principal de coleta de dados
+        executa continuamente enquanto _running for True
+        """
         while self._running:
             try:
-                # print("Coletando dados do sistema...")  # Debug
-
+                # coleta dados de uso da CPU (/proc/stat)
                 cpu = self.system_info.get_cpu_usage()
-                # print(f"CPU: {cpu}")  # Debug
 
+                # coleta dados de uso da memória (/proc/meminfo)
                 mem = self.system_info.get_mem_usage()
-                # print(f"Memória: {type(mem)}")  # Debug
 
+                # coleta informações de processos e threads (/proc/*/status, /proc/*/task)
                 processes, threads = self.process_info.get_process_info()
-                # print(f"Processos: {len(processes)}, Threads: {len(threads)}")  # Debug
 
+                # Conta total de processos no sistema
                 total_processes = self.process_info.count_processes()
+
+                # Conta total de threads no sistema
                 total_threads = self.process_info.count_threads()
-                # print(f"Total processos: {total_processes}, Total threads: {total_threads}")  # Debug
 
+                # obtém os processos que mais consomem memória (top 15)
                 top_processes = self.process_info.get_top_processes_by_memory()
-                # print(f"Top processos: {len(top_processes)}")  # Debug
 
+                # atualiza o dicionário de dados com as informações coletadas
                 self.data = {
-                    "cpu": cpu,
-                    "mem": mem,
-                    "processes": processes,
-                    "threads": threads,
-                    "total_processes": total_processes,
-                    "total_threads": total_threads,
-                    "top_processes": top_processes,
+                    "cpu": cpu,  # dados de CPU (uso, tempo total, tempo ocioso)
+                    "mem": mem,  # dados de memória (total, usado, livre, cache, etc.)
+                    "processes": processes,  # lista de todos os processos
+                    "threads": threads,  # lista de threads selecionadas
+                    "total_processes": total_processes,  # contagem total de processos
+                    "total_threads": total_threads,  # contagem total de threads
+                    "top_processes": top_processes,  # top processos por memória
                 }
 
-                # print("Dados atualizados com sucesso")  # Debug
-
             except Exception as e:
-                # print(f"Erro na coleta de dados: {e}")
                 import traceback
 
                 traceback.print_exc()
@@ -65,4 +85,6 @@ class MonitorController:
             time.sleep(self.refresh_interval)
 
     def get_data(self) -> dict:
+        # retorna os dados mais recentes coletados pelo monitor
+
         return self.data
