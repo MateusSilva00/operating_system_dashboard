@@ -99,7 +99,7 @@ class ProcessInfo:
         return process_data
 
     def _collect_threads_for_process(
-        self, pid: str, process_data: dict, max_threads: int = 5
+        self, pid: str, process_data: dict
     ) -> list:
         """
         coleta informações de threads para um processo específico
@@ -115,7 +115,7 @@ class ProcessInfo:
                 task_entries = [t for t in os.listdir(task_dir) if t.isdigit()]
 
                 # limita o número de threads coletadas por processo (performance)
-                for tid in task_entries[:max_threads]:
+                for tid in task_entries:
                     thread_status = process_data["status"]
 
                     try:
@@ -142,7 +142,7 @@ class ProcessInfo:
             pass
         return threads
 
-    def get_process_info(self) -> tuple:
+    def get_process_info(self) -> list:
         """
         obtém informações de todos os processos e threads do sistema
 
@@ -150,7 +150,6 @@ class ProcessInfo:
         extrai informações de cada um e coleta dados de suas threads
         """
         processes = []
-        threads = []
         proc_entries = self._get_proc_entries()
 
         for pid in proc_entries:
@@ -164,16 +163,14 @@ class ProcessInfo:
                     "Name": process_data["name"],
                     "Status": process_data["status"],
                     "Memory": process_data["memory_kb"],
-                    "Threads": process_data["thread_count"],
+                    "Threads Count": process_data["thread_count"],
+                    "Threads": self._collect_threads_for_process(
+                        pid, process_data
+                    )
                 }
             )
 
-            # coleta threads do processo
-            if len(threads) < 400:  # limite de threads coletadas
-                thread_list = self._collect_threads_for_process(pid, process_data)
-                threads.extend(thread_list)
-
-        return processes, threads
+        return processes
 
     def count_processes(self) -> int:
         return len(self._get_proc_entries())
@@ -196,7 +193,7 @@ class ProcessInfo:
 
     def get_top_processes_by_memory(self, limit=15) -> list:
         # Retorna os processos que mais consomem memória
-        processes, _ = self.get_process_info()
+        processes = self.get_process_info()
 
         # filtra apenas processos com memória válida (> 0)
         valid_processes = [
@@ -274,27 +271,11 @@ class ProcessInfo:
             pass
         return process_details
 
-    def get_all_page_usage(self) -> dict:
-        # obtém uso de páginas para todos os processos
-        all_page_usage = {}
-        for pid in self._get_proc_entries():
-            page_usage = self.get_page_usage_by_pid(pid)
-            if page_usage and any(page_usage.values()):
-                all_page_usage[pid] = page_usage
-        return all_page_usage
 
-    def get_all_process_details(self) -> dict:
-        # obtém detalhes de todos os processos
-        all_process_details = {}
-        for pid in self._get_proc_entries():
-            process_details = self.get_process_details(pid)
-            if process_details:
-                all_process_details[pid] = process_details
-        return all_process_details
-
-
-# teste 
 if __name__ == "__main__":
     process = ProcessInfo()
-    processes, threads = process.get_process_info()
-    print(f"Processos: {len(processes)}, Threads: {len(threads)}")
+    top_processes = process.get_top_processes_by_memory(limit=5)
+
+    for proc in top_processes:
+        print(proc)
+        break

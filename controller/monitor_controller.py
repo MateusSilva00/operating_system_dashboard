@@ -55,7 +55,7 @@ class MonitorController:
                 mem = self.system_info.get_mem_usage()
 
                 # coleta informações de processos e threads (/proc/*/status, /proc/*/task)
-                processes, threads = self.process_info.get_process_info()
+                processes = self.process_info.get_process_info()
 
                 # Conta total de processos no sistema
                 total_processes = self.process_info.count_processes()
@@ -71,7 +71,6 @@ class MonitorController:
                     "cpu": cpu,  # dados de CPU (uso, tempo total, tempo ocioso)
                     "mem": mem,  # dados de memória (total, usado, livre, cache, etc.)
                     "processes": processes,  # lista de todos os processos
-                    "threads": threads,  # lista de threads selecionadas
                     "total_processes": total_processes,  # contagem total de processos
                     "total_threads": total_threads,  # contagem total de threads
                     "top_processes": top_processes,  # top processos por memória

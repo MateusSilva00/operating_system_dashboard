@@ -284,7 +284,7 @@ class Dashboard(tk.Tk):
         header_frame.pack(fill="x", pady=(0, 15))
 
         title = ttk.Label(
-            header_frame, text="⚙️ GERENCIADOR DE PROCESSOS", style="Title.TLabel"
+            header_frame, text="GERENCIADOR DE PROCESSOS", style="Title.TLabel"
         )
         title.pack(side="left")
 
@@ -304,7 +304,7 @@ class Dashboard(tk.Tk):
 
         # Métrica de processos
         proc_title = ttk.Label(
-            process_card, text="📊 TOTAL DE PROCESSOS", style="Info.TLabel"
+            process_card, text="TOTAL DE PROCESSOS", style="Info.TLabel"
         )
         proc_title.pack(anchor="w", padx=15, pady=(10, 5))
 
@@ -315,7 +315,7 @@ class Dashboard(tk.Tk):
 
         # Métrica de threads
         thread_title = ttk.Label(
-            thread_card, text="🧵 TOTAL DE THREADS", style="Info.TLabel"
+            thread_card, text="TOTAL DE THREADS", style="Info.TLabel"
         )
         thread_title.pack(anchor="w", padx=15, pady=(10, 5))
 
@@ -330,7 +330,7 @@ class Dashboard(tk.Tk):
 
         # Sub-aba de processos
         processes_frame = ttk.Frame(self.process_tab_control)
-        self.process_tab_control.add(processes_frame, text="🔄 PROCESSOS ATIVOS")
+        self.process_tab_control.add(processes_frame, text="PROCESSOS ATIVOS")
 
         proc_container = tk.Frame(processes_frame, bg=self.BACKGROUND_COLOR)
         proc_container.pack(fill="both", expand=True, padx=10, pady=10)
@@ -340,27 +340,13 @@ class Dashboard(tk.Tk):
         )
         proc_header.pack(anchor="w", pady=(0, 10))
 
-        proc_columns = ("PID", "USUÁRIO", "PROCESSO", "STATUS", "MEMÓRIA", "THREADS")
+        proc_columns = ("PID", "USUÁRIO", "PROCESSO", "STATUS", "MEMÓRIA", "NÚMERO DE THREADS")
         self._create_treeview(proc_container, proc_columns, "processes")
 
-        # Sub-aba de threads
-        threads_frame = ttk.Frame(self.process_tab_control)
-        self.process_tab_control.add(threads_frame, text="🧵 THREADS ATIVAS")
-
-        thread_container = tk.Frame(threads_frame, bg=self.BACKGROUND_COLOR)
-        thread_container.pack(fill="both", expand=True, padx=10, pady=10)
-
-        thread_header = ttk.Label(
-            thread_container, text="THREADS DO SISTEMA", style="Info.TLabel"
-        )
-        thread_header.pack(anchor="w", pady=(0, 10))
-
-        thread_columns = ("TID", "PID", "USUÁRIO", "PROCESSO", "STATUS")
-        self._create_treeview(thread_container, thread_columns, "threads")
 
         # Sub-aba de detalhes
         details_frame = ttk.Frame(self.process_tab_control)
-        self.process_tab_control.add(details_frame, text="📋 DETALHES")
+        self.process_tab_control.add(details_frame, text="DETALHES")
 
         details_container = tk.Frame(details_frame, bg=self.BACKGROUND_COLOR)
         details_container.pack(fill="both", expand=True, padx=10, pady=10)
@@ -429,7 +415,7 @@ class Dashboard(tk.Tk):
                 ("PPID", details.get("PPid", "N/A")),
                 ("Usuário (UID)", details.get("Uid", "N/A")),
                 ("Grupo (GID)", details.get("Gid", "N/A")),
-                ("Threads", details.get("Threads", "N/A")),
+                ("Threads", details.get("Threads Count", "N/A")),
             ]
 
             output += "📋 INFORMAÇÕES BÁSICAS:\n"
@@ -458,7 +444,7 @@ class Dashboard(tk.Tk):
 
             # Uso de páginas
             if page_usage and any(page_usage.values()):
-                output += "\n📄 USO DE PÁGINAS:\n"
+                output += "\nUSO DE PÁGINAS:\n"
                 output += f"  Total: {page_usage.get('total', 0)} kB\n"
                 output += f"  Código: {page_usage.get('code', 0)} kB\n"
                 output += f"  Heap: {page_usage.get('heap', 0)} kB\n"
@@ -466,7 +452,7 @@ class Dashboard(tk.Tk):
 
             # Linha de comando
             if "Command Line" in details and details["Command Line"]:
-                output += f"\n⚡ LINHA DE COMANDO:\n  {details['Command Line']}\n"
+                output += f"\nLINHA DE COMANDO:\n  {details['Command Line']}\n"
 
         else:
             output = f"❌ Não foi possível obter detalhes do processo {pid}\n"
@@ -485,7 +471,7 @@ class Dashboard(tk.Tk):
         header_frame.pack(fill="x", pady=(0, 15))
 
         title = ttk.Label(
-            header_frame, text="💾 ANÁLISE DE MEMÓRIA", style="Title.TLabel"
+            header_frame, text="ANÁLISE DE MEMÓRIA", style="Title.TLabel"
         )
         title.pack(side="left")
 
@@ -921,39 +907,13 @@ class Dashboard(tk.Tk):
                                 str(proc.get("Name", "N/A"))[:25],
                                 str(proc.get("Status", "N/A")),
                                 memory_formatted,
-                                str(proc.get("Threads", "N/A")),
+                                str(proc.get("Threads Count", "N/A")),
                             ),
                         )
                     except Exception as e:
                         print(f"Erro ao inserir processo: {e}")
                         continue
 
-        # Atualizar tabela de threads
-        thread_tree = self.trees.get("threads")
-        if thread_tree:
-            # Limpar dados anteriores
-            for item in thread_tree.get_children():
-                thread_tree.delete(item)
-
-            # Inserir novos dados (limitado para performance)
-            threads = data.get("threads", [])
-            if isinstance(threads, list):
-                for thread in threads[:300]:  # Aumentar limite para 100 threads
-                    try:
-                        thread_tree.insert(
-                            "",
-                            tk.END,
-                            values=(
-                                str(thread.get("TID", "N/A")),
-                                str(thread.get("PID", "N/A")),
-                                str(thread.get("User", "N/A"))[:15],
-                                str(thread.get("Name", "N/A"))[:20],
-                                str(thread.get("Status", "N/A")),
-                            ),
-                        )
-                    except Exception as e:
-                        print(f"Erro ao inserir thread: {e}")
-                        continue
 
     def _update_memory_details(self):
         tree = self.trees.get("memory_details")
@@ -973,11 +933,6 @@ class Dashboard(tk.Tk):
     def _update_data(self):
         try:
             data = self.controller.get_data()
-            if not data or not isinstance(data, dict):
-                print("Dados não disponíveis ou inválidos")
-                self.after(self.UPDATE_INTERVAL, self._update_data)
-                return
-
             self._update_global_metrics(data)
             self._update_process_list(data)
             self._update_memory_details()
