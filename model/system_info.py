@@ -3,6 +3,9 @@ System Info - Modelo responsável pela coleta de informações do sistema
 Coleta dados de CPU e memória através dos arquivos /proc/stat e /proc/meminfo
 """
 
+import os
+from typing import Dict, List, Optional
+
 # caminhos dos arquivos de sistema no Linux
 CPU_PATH = "/proc/stat"  # arquivo com estatísticas da CPU
 MEM_PATH = "/proc/meminfo"  # arquivo com informações de memória
@@ -125,23 +128,66 @@ class MemoryInfo:
             "mem_percent_usage": mem_percent_usage,  
         }
 
+    def get_disk_partitions(self) -> list:
+        partitions = []
+        with open("/proc/partitions", "r") as files:
+            lines = files.readlines()[2:]
+            for line in lines:
+                parts = line.split()
+                if len(parts) >= 4:
+                    device = parts[3]
+                    partitions.append(device)     
+        return partitions
+
+    def get_partition_usage(self, partition_name) -> Optional[Dict[str, float]]:
+        """
+        Obtém informações de uso de uma partição específica
+        """     
+        with open("/proc/mounts", "r") as f:
+            mounts = f.readlines()
+            for mount in mounts:
+                if partition_name in mount:
+                    mount_info = mount.split()
+                    mount_path = mount_info[1]  
+                    break
+            else:
+                mount_path = None
+        
+        if mount_path:
+            usage = os.statvfs(mount_path)
+            total = usage.f_frsize * usage.f_blocks
+            free = usage.f_frsize * usage.f_bfree
+            used = total - free
+            percent_usage = (used / total) * 100 if total > 0 else 0
+
+            return {
+                "partition": partition_name,
+                "mount_path": mount_path,
+                "total_size": total,
+                "used_size": used,
+                "free_size": free,
+                "percent_usage": percent_usage
+            }
+        
+        return None  # partição não montada ou não encontrada
+
+    def get_disk_partition_usage(self) -> List[Dict[str, float]]:
+        """
+        Obtém informações de uso de todas as partições montadas
+        """
+        partitions = self.get_disk_partitions()
+        partition_usages = []
+        
+        for partition in partitions:
+            usage = self.get_partition_usage(partition)
+            if usage:
+                partition_usages.append(usage)
+        
+        return partition_usages
 
 # teste
 if __name__ == "__main__":
     mem_info_obj = MemoryInfo()
-    mem_info = mem_info_obj.mem_info
-    mem_usage = mem_info_obj.mem_usage
-    cpu_usage = mem_info_obj.cpu_usage
-
-    print("Memory Info:")
-    for key, value in mem_info.items():
-        print(f"{key}: {value} kB")
-
-    print("\nMemory Usage:")
-    for key, value in mem_usage.items():
-        print(f"{key}: {value} kB")
-
-    print("\nCPU Usage:")
-    print(f"Usage: {cpu_usage['usage']:.2f}%")
-    print(f"Total Time: {cpu_usage['total']} ticks")
-    print(f"Idle Time: {cpu_usage['idle']} ticks")
+    partition_usages = mem_info_obj.get_disk_partition_usage()
+    for usage in partition_usages:
+        print(usage)

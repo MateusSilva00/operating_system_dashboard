@@ -191,13 +191,14 @@ class Dashboard(tk.Tk):
             ("global", "🌐 GLOBAL", self._create_global_tab),
             ("process", "⚙️ PROCESSOS", self._create_process_tab),
             ("memory", "💾 MEMÓRIA", self._create_memory_tab),
+            ("filesystem", "🗄️ SISTEMA DE ARQUIVOS", self._create_filesystem_tab),
         ]
 
         self.tabs = {}
         for tab_key, tab_text, create_func in tabs_config:
             tab_frame = ttk.Frame(self.tab_control)
-            self.tabs[tab_key] = tab_frame
             self.tab_control.add(tab_frame, text=tab_text)
+            self.tabs[tab_key] = tab_frame
             create_func(tab_frame)
 
     def _create_metric_card(
@@ -1024,6 +1025,49 @@ class Dashboard(tk.Tk):
         # Atualizar detalhes extras se visíveis
         self._update_memory_details_if_visible()
 
+    def _create_filesystem_tab(self, tab_frame: ttk.Frame):
+        """Cria aba do sistema de arquivos com informações das partições"""
+        container = tk.Frame(tab_frame, bg=self.BACKGROUND_COLOR)
+        container.pack(fill="both", expand=True, padx=15, pady=15)
+
+        header = ttk.Label(
+            container, text="SISTEMA DE ARQUIVOS - PARTIÇÕES", style="Title.TLabel"
+        )
+        header.pack(anchor="w", pady=(0, 15))
+
+        columns = ("Partição", "Ponto de Montagem", "Total", "Usado", "Livre", "% Usado")
+        tree = self._create_treeview(container, columns, "filesystem")
+
+        # Ajusta largura das colunas
+        for idx, col in enumerate(columns):
+            tree.column(col, width=120 if idx > 1 else 100, anchor="center")
+            tree.heading(col, text=col)
+
+        self._update_filesystem_tab()
+
+    def _update_filesystem_tab(self):
+        """Atualiza as informações do sistema de arquivos na aba"""
+        from view.utils import format_memory_size
+        tree = self.trees.get("filesystem")
+        if not tree:
+            return
+        for item in tree.get_children():
+            tree.delete(item)
+        partition_usages = self.controller.system_info.get_disk_partition_usage()
+        for usage in partition_usages:
+            total_str = format_memory_size(usage["total_size"] // 1024)
+            used_str = format_memory_size(usage["used_size"] // 1024)
+            free_str = format_memory_size(usage["free_size"] // 1024)
+            percent = f'{usage["percent_usage"]:.2f}%'
+            tree.insert("", "end", values=(
+                usage["partition"],
+                usage["mount_path"],
+                total_str,
+                used_str,
+                free_str,
+                percent
+            ))
+
     def _update_data(self):
         try:
             data = self.controller.get_data()
@@ -1031,6 +1075,7 @@ class Dashboard(tk.Tk):
             self._update_process_list(data)
             self._update_memory_details()
             self._update_memory_chart(data)
+            self._update_filesystem_tab()
 
         except Exception as e:
             print(f"Erro ao atualizar dados: {e}")
