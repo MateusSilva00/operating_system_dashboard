@@ -191,7 +191,7 @@ class ProcessInfo:
                 continue
         return total_threads
 
-    def get_top_processes_by_memory(self, limit=15) -> list:
+    def get_top_processes_by_memory(self, limit=30) -> list:
         # Retorna os processos que mais consomem memória
         processes = self.get_process_info()
 

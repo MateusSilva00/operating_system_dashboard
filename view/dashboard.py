@@ -145,11 +145,18 @@ class Dashboard(tk.Tk):
                 "font": ("JetBrains Mono", 11, "bold"),
                 "borderwidth": 0,
             },
+            # Estilo para threads
+            "Thread.Treeview": {
+                "background": "#222a33",
+                "foreground": "#00ff88",
+                "font": ("JetBrains Mono", 10, "italic"),
+            },
         }
 
         for style_name, config in style_configs.items():
             style.configure(style_name, **config)
 
+        # Tag para threads: cor de fundo e texto diferente
         style.map(
             "TNotebook.Tab",
             background=[("selected", self.COLORS["primary"])],
@@ -159,6 +166,8 @@ class Dashboard(tk.Tk):
             "Futuristic.Treeview",
             background=[("selected", f"{self.COLORS['primary']}33")],
         )
+        # Aplica cor de fundo para threads
+        style.configure("thread", background="#222a33", foreground="#00ff88", font=("JetBrains Mono", 10, "italic"))
 
     def _create_interface(self):
         self._create_header()
@@ -343,6 +352,9 @@ class Dashboard(tk.Tk):
         proc_columns = ("PID", "USUÁRIO", "PROCESSO", "STATUS", "MEMÓRIA", "NÚMERO DE THREADS")
         self._create_treeview(proc_container, proc_columns, "processes")
 
+        # Controle para expansão de threads
+        self._expanded_process = None
+        self._thread_items = []
 
         # Sub-aba de detalhes
         details_frame = ttk.Frame(self.process_tab_control)
@@ -383,17 +395,63 @@ class Dashboard(tk.Tk):
         self.trees["processes"].bind("<ButtonRelease-1>", self._on_process_select)
 
     def _on_process_select(self, event):
-        """Exibe detalhes do processo selecionado"""
+        """Exibe detalhes do processo selecionado e expande/collapse threads"""
         tree = self.trees["processes"]
         selection = tree.selection()
         if not selection:
             return
 
-        item = tree.item(selection[0])
+        item_id = selection[0]
+        item = tree.item(item_id)
         values = item["values"]
-        if values:
-            pid = values[0]
-            self._show_process_details(pid)
+        if not values:
+            return
+        pid = str(values[0])
+        self._show_process_details(pid)
+
+        # Collapse threads se já estiver expandido
+        if self._expanded_process == item_id:
+            for tid in self._thread_items:
+                tree.delete(tid)
+            self._expanded_process = None
+            self._thread_items = []
+            return
+        # Remove threads de expansão anterior
+        if self._thread_items:
+            for tid in self._thread_items:
+                tree.delete(tid)
+            self._thread_items = []
+
+        # Buscar threads do processo
+        process = None
+        data = self.controller.get_data()
+        for proc in data.get("top_processes", []):
+            if str(proc.get("PID")) == pid:
+                process = proc
+                break
+        if not process:
+            return
+        threads = process.get("Threads", [])
+        # Inserir threads como filhos
+        for thread in threads:
+            thread_id = tree.insert(
+                item_id,
+                tk.END,
+                values=(
+                    f"↳ TID: {thread.get('TID', '-')} ",
+                    thread.get("User", "-"),
+                    f"↳ {thread.get('Name', '-')} ",
+                    thread.get("Status", "-"),
+                    "-",  # Memória não detalhada por thread
+                    "-",  # Threads por thread não faz sentido
+                ),
+                tags=("thread",)
+            )
+            self._thread_items.append(thread_id)
+        self._expanded_process = item_id
+
+        # Expandir visualmente
+        tree.item(item_id, open=True)
 
     def _show_process_details(self, pid):
         """Mostra detalhes completos do processo"""
@@ -883,12 +941,21 @@ class Dashboard(tk.Tk):
         # Atualizar tabela de processos
         proc_tree = self.trees.get("processes")
         if proc_tree:
+            # Salvar PID do processo expandido (se houver)
+            expanded_pid = None
+            if self._expanded_process:
+                item = proc_tree.item(self._expanded_process)
+                values = item.get("values", [])
+                if values:
+                    expanded_pid = str(values[0])
             # Limpar dados anteriores
             for item in proc_tree.get_children():
                 proc_tree.delete(item)
-
+            self._expanded_process = None
+            self._thread_items = []
             # Inserir novos dados
             top_processes = data.get("top_processes", [])
+            pid_to_itemid = {}
             if isinstance(top_processes, list):
                 for proc in top_processes:
                     try:
@@ -897,8 +964,7 @@ class Dashboard(tk.Tk):
                             memory_formatted = format_memory_size(memory_kb)
                         else:
                             memory_formatted = "0 KB"
-
-                        proc_tree.insert(
+                        item_id = proc_tree.insert(
                             "",
                             tk.END,
                             values=(
@@ -910,10 +976,38 @@ class Dashboard(tk.Tk):
                                 str(proc.get("Threads Count", "N/A")),
                             ),
                         )
+                        pid_to_itemid[str(proc.get("PID", "N/A"))] = item_id
                     except Exception as e:
                         print(f"Erro ao inserir processo: {e}")
                         continue
-
+            # Reexpandir threads do processo expandido, se aplicável
+            if expanded_pid and expanded_pid in pid_to_itemid:
+                item_id = pid_to_itemid[expanded_pid]
+                # Buscar threads do processo
+                process = None
+                for proc in top_processes:
+                    if str(proc.get("PID")) == expanded_pid:
+                        process = proc
+                        break
+                if process:
+                    threads = process.get("Threads", [])
+                    for thread in threads:
+                        thread_id = proc_tree.insert(
+                            item_id,
+                            tk.END,
+                            values=(
+                                f"↳ TID: {thread.get('TID', '-')} ",
+                                thread.get("User", "-"),
+                                f"↳ {thread.get('Name', '-')} ",
+                                thread.get("Status", "-"),
+                                "-",  # Memória não detalhada por thread
+                                "-",  # Threads por thread não faz sentido
+                            ),
+                            tags=("thread",)
+                        )
+                        self._thread_items.append(thread_id)
+                    self._expanded_process = item_id
+                    proc_tree.item(item_id, open=True)
 
     def _update_memory_details(self):
         tree = self.trees.get("memory_details")
