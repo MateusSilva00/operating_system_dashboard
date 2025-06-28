@@ -171,6 +171,83 @@ class MemoryInfo:
         
         return None  # partição não montada ou não encontrada
 
+    def get_process_open_files(self, pid: int) -> List[dict]:
+        """
+        Retorna uma lista de arquivos abertos pelo processo (fd)
+        """
+        files = []
+        fd_path = f"/proc/{pid}/fd"
+        if not os.path.exists(fd_path):
+            return files
+        try:
+            for fd in os.listdir(fd_path):
+                file_info = {}
+                fd_full_path = os.path.join(fd_path, fd)
+                try:
+                    target = os.readlink(fd_full_path)
+                    file_info["fd"] = fd
+                    file_info["target"] = target
+                    files.append(file_info)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return files
+
+    def get_process_sockets(self, pid: int) -> List[dict]:
+        """
+        Retorna uma lista de sockets abertos pelo processo
+        """
+        sockets = []
+        fd_path = f"/proc/{pid}/fd"
+        if not os.path.exists(fd_path):
+            return sockets
+        try:
+            for fd in os.listdir(fd_path):
+                fd_full_path = os.path.join(fd_path, fd)
+                try:
+                    target = os.readlink(fd_full_path)
+                    if "socket:[" in target:
+                        sockets.append({"fd": fd, "target": target})
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return sockets
+
+    def get_process_semaphores(self, pid: int) -> List[dict]:
+        """
+        Retorna uma lista de semáforos/mutexes abertos pelo processo (Linux: /proc/[pid]/sysvipc/sem ou /proc/[pid]/fdinfo)
+        """
+        # No Linux moderno, semáforos POSIX podem ser vistos em /proc/[pid]/fdinfo
+        semaphores = []
+        fdinfo_path = f"/proc/{pid}/fdinfo"
+        if not os.path.exists(fdinfo_path):
+            return semaphores
+        try:
+            for fd in os.listdir(fdinfo_path):
+                fdinfo_file = os.path.join(fdinfo_path, fd)
+                try:
+                    with open(fdinfo_file, "r") as f:
+                        content = f.read()
+                        if "sem" in content or "mutex" in content:
+                            semaphores.append({"fd": fd, "info": content})
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return semaphores
+
+    def get_process_resources(self, pid: int) -> dict:
+        """
+        Retorna um dicionário com todos os recursos abertos/alocados pelo processo:
+        arquivos, sockets, semáforos/mutexes
+        """
+        return {
+            "open_files": self.get_process_open_files(pid),
+            "sockets": self.get_process_sockets(pid),
+            "semaphores": self.get_process_semaphores(pid)
+        }
     def get_disk_partition_usage(self) -> List[Dict[str, float]]:
         """
         Obtém informações de uso de todas as partições montadas
@@ -188,6 +265,11 @@ class MemoryInfo:
 # teste
 if __name__ == "__main__":
     mem_info_obj = MemoryInfo()
+    # Exemplo: mostrar recursos do processo atual
+    import os
+    pid = os.getpid()
+    print(f"Recursos do processo {pid}:")
+    print(mem_info_obj.get_process_resources(pid))
     partition_usages = mem_info_obj.get_disk_partition_usage()
     for usage in partition_usages:
         print(usage)

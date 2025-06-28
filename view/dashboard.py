@@ -192,14 +192,102 @@ class Dashboard(tk.Tk):
             ("process", "⚙️ PROCESSOS", self._create_process_tab),
             ("memory", "💾 MEMÓRIA", self._create_memory_tab),
             ("filesystem", "🗄️ SISTEMA DE ARQUIVOS", self._create_filesystem_tab),
+            ("resources", "🔗 RECURSOS POR PROCESSO", self._create_resources_tab),
         ]
 
         self.tabs = {}
-        for tab_key, tab_text, create_func in tabs_config:
+        for tab in tabs_config:
+            tab_key = tab[0]
+            tab_text = tab[1]
+            create_func = tab[2]
             tab_frame = ttk.Frame(self.tab_control)
             self.tab_control.add(tab_frame, text=tab_text)
             self.tabs[tab_key] = tab_frame
-            create_func(tab_frame)
+            if callable(create_func):
+                create_func(tab_frame)
+
+    def _create_resources_tab(self, tab_frame: ttk.Frame):
+        """Cria aba para exibir recursos abertos/alocados por processo"""
+        import tkinter as tk
+        container = tk.Frame(tab_frame, bg=self.BACKGROUND_COLOR)
+        container.pack(fill="both", expand=True, padx=15, pady=15)
+
+        header = ttk.Label(
+            container, text="RECURSOS ABERTOS POR PROCESSO", style="Title.TLabel"
+        )
+        header.pack(anchor="w", pady=(0, 10))
+
+        # Frame de seleção de PID
+        pid_frame = tk.Frame(container, bg=self.BACKGROUND_COLOR)
+        pid_frame.pack(fill="x", pady=(0, 10))
+
+        pid_label = ttk.Label(pid_frame, text="PID do Processo:", style="Info.TLabel")
+        pid_label.pack(side="left", padx=(0, 8))
+
+        self.pid_entry = ttk.Entry(pid_frame, width=10)
+        self.pid_entry.pack(side="left")
+
+        fetch_btn = ttk.Button(pid_frame, text="Buscar Recursos", command=self._on_fetch_resources)
+        fetch_btn.pack(side="left", padx=(8, 0))
+
+        # Text widget para exibir recursos
+        self.resources_text = tk.Text(
+            container,
+            bg=self.COLORS["dark"],
+            fg=self.COLORS["text"],
+            font=("JetBrains Mono", 10),
+            wrap=tk.WORD,
+            state=tk.DISABLED,
+        )
+        self.resources_text.pack(fill="both", expand=True, pady=(10, 0))
+
+    def _on_fetch_resources(self):
+        """Busca e exibe recursos do processo informado no campo PID"""
+        pid_str = self.pid_entry.get()
+        if not pid_str.isdigit():
+            self._show_resources_output("PID inválido.")
+            return
+        pid = int(pid_str)
+        try:
+            resources = self.controller.system_info.get_process_resources(pid)
+        except Exception as e:
+            self._show_resources_output(f"Erro ao buscar recursos: {e}")
+            return
+        output = self._format_resources_output(pid, resources)
+        self._show_resources_output(output)
+
+    def _format_resources_output(self, pid, resources):
+        output = f"Recursos do processo {pid}:\n\n"
+        open_files = resources.get("open_files", [])
+        sockets = resources.get("sockets", [])
+        semaphores = resources.get("semaphores", [])
+
+        output += f"Arquivos abertos ({len(open_files)}):\n"
+        for f in open_files:
+            output += f"  [fd {f['fd']}] {f['target']}\n"
+        if not open_files:
+            output += "  Nenhum arquivo aberto encontrado.\n"
+
+        output += f"\nSockets ({len(sockets)}):\n"
+        for s in sockets:
+            output += f"  [fd {s['fd']}] {s['target']}\n"
+        if not sockets:
+            output += "  Nenhum socket encontrado.\n"
+
+        output += f"\nSemáforos/Mutexes ({len(semaphores)}):\n"
+        for sem in semaphores:
+            info_preview = sem['info'][:60].replace("\n", " ")
+            output += f"  [fd {sem['fd']}] {info_preview}...\n"
+        if not semaphores:
+            output += "  Nenhum semáforo/mutex encontrado.\n"
+
+        return output
+
+    def _show_resources_output(self, output):
+        self.resources_text.config(state="normal")
+        self.resources_text.delete(1.0, "end")
+        self.resources_text.insert("end", output)
+        self.resources_text.config(state="disabled")
 
     def _create_metric_card(
         self, parent: tk.Widget, title: str, key: str, unit: str = ""
