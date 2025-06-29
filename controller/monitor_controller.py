@@ -6,6 +6,7 @@ Responsável pela coleta de dados do sistema e disponibilizá-los para a interfa
 import threading
 import time
 
+from model.file_info import FileInfo
 from model.process_info import ProcessInfo
 from model.system_info import MemoryInfo
 
@@ -25,6 +26,7 @@ class MonitorController:
         # Instâncias dos modelos de dados
         self.system_info = MemoryInfo()  # Coleta informações de CPU e memória
         self.process_info = ProcessInfo()  # Coleta informações de processos e threads
+        self.file_info = FileInfo()  # Coleta informações de arquivos
 
         # Dicionário para todos dados coletados
         self.data: dict = {}

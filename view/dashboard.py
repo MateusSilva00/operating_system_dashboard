@@ -1,3 +1,4 @@
+import os
 import signal
 import sys
 import tkinter as tk
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from controller.monitor_controller import MonitorController
+from model.file_info import FileInfo
 from view.utils import format_memory_size, format_memory_value_only, get_memory_unit
 
 
@@ -36,6 +38,10 @@ class Dashboard(tk.Tk):
         self.controller = controller
         self.mem_usage_history: List[float] = []
         self.show_all_memory_details = False
+        
+        # Adicionar FileInfo para navegação de diretórios
+        self.file_info = FileInfo()
+        self.current_directory = "/"
 
         self.metric_labels: Dict[str, ttk.Label] = {}
         self.trees: Dict[str, ttk.Treeview] = {}
@@ -192,6 +198,7 @@ class Dashboard(tk.Tk):
             ("process", "PROCESSOS", self._create_process_tab),
             ("memory", "MEMÓRIA", self._create_memory_tab),
             ("filesystem", "SISTEMA DE ARQUIVOS", self._create_filesystem_tab),
+            ("directories", "DIRETÓRIOS", self._create_directories_tab),
         ]
 
         self.tabs = {}
@@ -1097,3 +1104,274 @@ class Dashboard(tk.Tk):
     def _on_mousewheel_linux(self, event):
         direction = -1 if event.num == 4 else 1
         self.main_canvas.yview_scroll(direction, "units")
+
+    def _create_directories_tab(self, tab_frame: ttk.Frame):
+        """Cria aba de navegação de diretórios"""
+        container = tk.Frame(tab_frame, bg=self.BACKGROUND_COLOR)
+        container.pack(fill="both", expand=True, padx=12, pady=12)
+
+        # Header com navegação
+        header_frame = tk.Frame(container, bg=self.BACKGROUND_COLOR)
+        header_frame.pack(fill="x", pady=(0, 10))
+
+        title = ttk.Label(header_frame, text="NAVEGADOR DE ARQUIVOS", style="Title.TLabel")
+        title.pack(side="left")
+
+        # Barra de navegação
+        nav_frame = tk.Frame(container, bg=self.BACKGROUND_COLOR)
+        nav_frame.pack(fill="x", pady=(0, 10))
+
+        # Botões de navegação
+        btn_frame = tk.Frame(nav_frame, bg=self.BACKGROUND_COLOR)
+        btn_frame.pack(side="left")
+
+        self.btn_back = tk.Button(btn_frame, text="◀ Voltar", command=self._go_back,
+                                 bg=self.COLORS["primary"], fg=self.COLORS["background"],
+                                 font=("JetBrains Mono", 9, "bold"), relief="flat",
+                                 padx=8, pady=4, cursor="hand2")
+        self.btn_back.pack(side="left", padx=(0, 5))
+
+        self.btn_up = tk.Button(btn_frame, text="▲ Acima", command=self._go_up,
+                               bg=self.COLORS["primary"], fg=self.COLORS["background"],
+                               font=("JetBrains Mono", 9, "bold"), relief="flat",
+                               padx=8, pady=4, cursor="hand2")
+        self.btn_up.pack(side="left", padx=(0, 5))
+
+        self.btn_home = tk.Button(btn_frame, text="🏠 Home", command=self._go_home,
+                                 bg=self.COLORS["primary"], fg=self.COLORS["background"],
+                                 font=("JetBrains Mono", 9, "bold"), relief="flat",
+                                 padx=8, pady=4, cursor="hand2")
+        self.btn_home.pack(side="left")
+
+        # Campo de caminho atual
+        path_frame = tk.Frame(nav_frame, bg=self.BACKGROUND_COLOR)
+        path_frame.pack(side="right", fill="x", expand=True, padx=(10, 0))
+
+        path_label = ttk.Label(path_frame, text="Caminho:", style="Info.TLabel")
+        path_label.pack(side="left")
+
+        self.path_var = tk.StringVar(value=self.current_directory)
+        self.path_entry = ttk.Entry(path_frame, textvariable=self.path_var, width=50)
+        self.path_entry.pack(side="left", fill="x", expand=True, padx=(5, 5))
+        self.path_entry.bind("<Return>", self._on_path_enter)
+
+        go_btn = tk.Button(path_frame, text="IR", command=self._navigate_to_path,
+                          bg=self.COLORS["secondary"], fg=self.COLORS["background"],
+                          font=("JetBrains Mono", 9, "bold"), relief="flat",
+                          padx=8, pady=4, cursor="hand2")
+        go_btn.pack(side="right")
+
+        # Layout principal: árvore de diretórios + lista de arquivos
+        main_layout = tk.Frame(container, bg=self.BACKGROUND_COLOR)
+        main_layout.pack(fill="both", expand=True)
+
+        # Painel esquerdo: árvore de diretórios
+        tree_frame = ttk.Frame(main_layout, style="Card.TFrame")
+        tree_frame.pack(side="left", fill="both", padx=(0, 6))
+        tree_frame.configure(width=300)
+        tree_frame.pack_propagate(False)
+
+        tree_header = tk.Frame(tree_frame, bg=self.COLORS["card"])
+        tree_header.pack(fill="x", padx=12, pady=12)
+
+        tree_title = ttk.Label(tree_header, text="ÁRVORE DE DIRETÓRIOS", style="Info.TLabel")
+        tree_title.pack()
+
+        # Treeview para árvore de diretórios
+        self.dir_tree = ttk.Treeview(tree_frame, show="tree", style="Futuristic.Treeview")
+        self.dir_tree.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        self.dir_tree.bind("<<TreeviewSelect>>", self._on_directory_select)
+
+        # Painel direito: lista de arquivos
+        files_frame = ttk.Frame(main_layout, style="Card.TFrame")
+        files_frame.pack(side="right", fill="both", expand=True, padx=(6, 0))
+
+        files_header = tk.Frame(files_frame, bg=self.COLORS["card"])
+        files_header.pack(fill="x", padx=15, pady=15)
+
+        files_title = ttk.Label(files_header, text="CONTEÚDO DO DIRETÓRIO", style="Info.TLabel")
+        files_title.pack(side="left")
+
+        # Busca
+        search_frame = tk.Frame(files_header, bg=self.COLORS["card"])
+        search_frame.pack(side="right")
+
+        search_label = ttk.Label(search_frame, text="Buscar:", 
+                                font=("JetBrains Mono", 9), foreground=self.COLORS["text"],
+                                background=self.COLORS["card"])
+        search_label.pack(side="left", padx=(0, 5))
+
+        self.search_var = tk.StringVar()
+        self.search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=20)
+        self.search_entry.pack(side="left")
+        self.search_entry.bind("<KeyRelease>", self._on_search)
+
+        # Lista de arquivos
+        files_container = tk.Frame(files_frame, bg=self.COLORS["card"])
+        files_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+
+        columns = ("Nome", "Tipo", "Tamanho", "Permissões", "Proprietário", "Modificado")
+        self.files_tree = ttk.Treeview(files_container, columns=columns, show="headings", 
+                                      style="Futuristic.Treeview")
+        
+        # Configurar colunas
+        self.files_tree.heading("Nome", text="Nome")
+        self.files_tree.column("Nome", width=200, anchor="w")
+        
+        self.files_tree.heading("Tipo", text="Tipo")
+        self.files_tree.column("Tipo", width=80, anchor="center")
+        
+        self.files_tree.heading("Tamanho", text="Tamanho")
+        self.files_tree.column("Tamanho", width=80, anchor="e")
+        
+        self.files_tree.heading("Permissões", text="Permissões")
+        self.files_tree.column("Permissões", width=100, anchor="center")
+        
+        self.files_tree.heading("Proprietário", text="Proprietário")
+        self.files_tree.column("Proprietário", width=100, anchor="center")
+        
+        self.files_tree.heading("Modificado", text="Modificado")
+        self.files_tree.column("Modificado", width=130, anchor="center")
+
+        files_scrollbar = ttk.Scrollbar(files_container, orient="vertical", command=self.files_tree.yview)
+        self.files_tree.configure(yscrollcommand=files_scrollbar.set)
+
+        self.files_tree.pack(side="left", fill="both", expand=True)
+        files_scrollbar.pack(side="right", fill="y")
+
+        self.files_tree.bind("<Double-1>", self._on_file_double_click)
+
+        # Inicializar navegação
+        self._populate_directory_tree()
+        self._populate_files_list()
+
+    def _populate_directory_tree(self):
+        """Popula a árvore de diretórios"""
+        self.dir_tree.delete(*self.dir_tree.get_children())
+        
+        # Adicionar nó raiz
+        root_node = self.dir_tree.insert("", "end", text="/", values=["/"], open=True)
+        
+        # Adicionar diretórios principais
+        try:
+            main_dirs = ["/home", "/usr", "/var", "/etc", "/opt", "/tmp"]
+            for dir_path in main_dirs:
+                if os.path.exists(dir_path) and os.path.isdir(dir_path):
+                    node = self.dir_tree.insert(root_node, "end", text=os.path.basename(dir_path), 
+                                               values=[dir_path])
+                    # Adicionar placeholder para mostrar seta de expansão
+                    self.dir_tree.insert(node, "end", text="...", values=[""])
+        except Exception:
+            pass
+
+        # Expandir diretório atual se não for raiz
+        if self.current_directory != "/":
+            self._expand_to_directory(self.current_directory)
+
+    def _expand_to_directory(self, target_path: str):
+        """Expande a árvore até o diretório especificado"""
+        pass  # Implementação simplificada por agora
+
+    def _populate_files_list(self):
+        """Popula a lista de arquivos do diretório atual"""
+        self.files_tree.delete(*self.files_tree.get_children())
+        
+        try:
+            contents = self.file_info.get_directory_contents(self.current_directory)
+            
+            # Filtrar por busca se houver
+            search_term = self.search_var.get().lower()
+            if search_term:
+                contents = [item for item in contents if search_term in item["name"].lower()]
+            
+            for item in contents:
+                # Ícone para tipo
+                name_display = item["name"]
+                if item["is_directory"]:
+                    name_display = f"📁 {name_display}"
+                elif item["is_link"]:
+                    name_display = f"🔗 {name_display}"
+                else:
+                    name_display = f"📄 {name_display}"
+                
+                self.files_tree.insert("", "end", values=(
+                    name_display,
+                    item["type"],
+                    item["size_formatted"] if not item["is_directory"] else "-",
+                    item["permissions"],
+                    item["owner"],
+                    item["modified"]
+                ))
+                
+        except Exception as e:
+            print(f"Erro ao listar arquivos: {e}")
+
+    def _on_directory_select(self, event):
+        """Chamado quando um diretório é selecionado na árvore"""
+        selection = self.dir_tree.selection()
+        if selection:
+            item = selection[0]
+            path = self.dir_tree.item(item, "values")[0]
+            if path and path != "":
+                self.current_directory = path
+                self.path_var.set(path)
+                self._populate_files_list()
+
+    def _on_file_double_click(self, event):
+        """Chamado quando um arquivo é clicado duas vezes"""
+        selection = self.files_tree.selection()
+        if selection:
+            item = selection[0]
+            name = self.files_tree.item(item, "values")[0]
+            # Remove ícone do nome
+            clean_name = name.split(" ", 1)[-1] if " " in name else name
+            
+            new_path = os.path.join(self.current_directory, clean_name)
+            
+            if os.path.isdir(new_path):
+                self.current_directory = new_path
+                self.path_var.set(new_path)
+                self._populate_files_list()
+                self._populate_directory_tree()
+
+    def _go_back(self):
+        """Volta para o diretório anterior"""
+        # Implementação simplificada - volta para o diretório pai
+        self._go_up()
+
+    def _go_up(self):
+        """Vai para o diretório pai"""
+        parent = os.path.dirname(self.current_directory)
+        if parent != self.current_directory:  # Evita loop na raiz
+            self.current_directory = parent
+            self.path_var.set(parent)
+            self._populate_files_list()
+            self._populate_directory_tree()
+
+    def _go_home(self):
+        """Vai para o diretório home do usuário"""
+        home = os.path.expanduser("~")
+        self.current_directory = home
+        self.path_var.set(home)
+        self._populate_files_list()
+        self._populate_directory_tree()
+
+    def _navigate_to_path(self):
+        """Navega para o caminho especificado"""
+        path = self.path_var.get().strip()
+        if os.path.exists(path) and os.path.isdir(path):
+            self.current_directory = path
+            self._populate_files_list()
+            self._populate_directory_tree()
+        else:
+            # Restaura caminho atual se inválido
+            self.path_var.set(self.current_directory)
+
+    def _on_path_enter(self, event):
+        """Chamado quando Enter é pressionado no campo de caminho"""
+        self._navigate_to_path()
+
+    def _on_search(self, event):
+        """Chamado quando o texto de busca muda"""
+        # Repopula a lista com filtro
+        self._populate_files_list()
