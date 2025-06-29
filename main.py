@@ -1,4 +1,3 @@
-import signal
 import sys
 
 from controller.monitor_controller import MonitorController

@@ -51,25 +51,27 @@ O **OS Dashboard** é um sistema de monitoramento em tempo real para sistemas op
 
 ```
 operating_system_dashboard/
-├── 📄 main.py                     # ponto de entrada da aplicação
-├── 📁 controller/
-│   └── 📄 monitor_controller.py   # controlador principal
-├── 📁 model/
-│   ├── 📄 system_info.py         # coleta dados de CPU/memória
-│   └── 📄 process_info.py        # coleta dados de processos
-├── 📁 view/
-│   ├── 📄 dashboard.py           # interface principal
-│   └── 📄 utils.py              # utilitários de formatação
+├── main.py                     # ponto de entrada da aplicação
+├── controller/
+│   └── monitor_controller.py   # controlador principal
+├── model/
+│   ├── system_info.py         # coleta dados de CPU/memória e disco
+│   ├── process_info.py        # coleta dados de processos e threads
+│   └── file_info.py           # coleta dados de arquivos e diretórios
+├── view/
+│   ├── dashboard.py           # interface principal
+│   └── utils.py              # utilitários de formatação
 ```
 
 ### Descrição dos Arquivos
 
 | Arquivo | Responsabilidade |
 |---------|------------------|
-| `main.py` | inicio da aplicação e tratamento de erros |
+| `main.py` | início da aplicação e tratamento de erros |
 | `monitor_controller.py` | coordena coleta de dados em thread separada |
-| `system_info.py` | coleta dados de CPU e memória via `/proc/stat` e `/proc/meminfo` |
-| `process_info.py` | coleta dados de processos via `/proc/*/status` e `/proc/*/task` |
+| `system_info.py` | coleta dados de CPU, memória, disco e recursos de processos via `/proc` |
+| `process_info.py` | coleta dados de processos e threads via `/proc` |
+| `file_info.py` | coleta informações detalhadas de arquivos e diretórios |
 | `dashboard.py` | interface gráfica com Tkinter e Matplotlib |
 | `utils.py` | funções auxiliares para formatação |
 
@@ -149,12 +151,23 @@ idle_percentage = 100 - cpu_usage
 - **Swap Total**: `SwapTotal` de `/proc/meminfo`
 
 #### Detalhes Completos (Botão "Exibir Mais")
-Exibe **todas** as métricas de `/proc/meminfo`:
-- MemTotal, MemFree, MemAvailable
-- Buffers, Cached, SwapCached
-- Active, Inactive, Mapped
-- Slab, SReclaimable, SUnreclaim
-- E muitas outras...
+Exibe todas as métricas de `/proc/meminfo`.
+
+#### Gráfico em Tempo Real
+- Linha: Percentual de uso de memória ao longo do tempo
+- Zonas coloridas: Laranja (80-90%), Vermelho (90-100%)
+
+### Aba SISTEMA DE ARQUIVOS
+
+Exibe partições, uso de disco e permite navegação por diretórios.
+
+### Aba DIRETÓRIOS
+
+Permite explorar a árvore de diretórios, visualizar arquivos, permissões, proprietário, grupo, tamanho e tipo.
+
+### Busca de Arquivos
+
+Busca arquivos por padrão de nome em diretórios selecionados, exibindo detalhes como nome, caminho, tamanho e permissões.
 
 #### Gráfico em Tempo Real
 - **Linha**: Percentual de uso de memória ao longo do tempo

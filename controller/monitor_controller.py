@@ -23,6 +23,9 @@ class MonitorController:
         # Thread daemon para coleta de dados em background
         self.thread = threading.Thread(target=self.run, daemon=True)
 
+        # Lock para proteger acesso concorrente aos dados
+        self._data_lock = threading.Lock()
+
         # Instâncias dos modelos de dados
         self.system_info = MemoryInfo()  # Coleta informações de CPU e memória
         self.process_info = ProcessInfo()  # Coleta informações de processos e threads
@@ -69,14 +72,15 @@ class MonitorController:
                 top_processes = self.process_info.get_top_processes_by_memory()
 
                 # atualiza o dicionário de dados com as informações coletadas
-                self.data = {
-                    "cpu": cpu,  # dados de CPU (uso, tempo total, tempo ocioso)
-                    "mem": mem,  # dados de memória (total, usado, livre, cache, etc.)
-                    "processes": processes,  # lista de todos os processos
-                    "total_processes": total_processes,  # contagem total de processos
-                    "total_threads": total_threads,  # contagem total de threads
-                    "top_processes": top_processes,  # top processos por memória
-                }
+                with self._data_lock:
+                    self.data = {
+                        "cpu": cpu,  # dados de CPU (uso, tempo total, tempo ocioso)
+                        "mem": mem,  # dados de memória (total, usado, livre, cache, etc.)
+                        "processes": processes,  # lista de todos os processos
+                        "total_processes": total_processes,  # contagem total de processos
+                        "total_threads": total_threads,  # contagem total de threads
+                        "top_processes": top_processes,  # top processos por memória
+                    }
 
             except Exception as e:
                 import traceback
@@ -87,5 +91,5 @@ class MonitorController:
 
     def get_data(self) -> dict:
         # retorna os dados mais recentes coletados pelo monitor
-
-        return self.data
+        with self._data_lock:
+            return self.data.copy()
