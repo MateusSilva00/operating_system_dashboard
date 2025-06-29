@@ -13,7 +13,7 @@ from view.utils import format_memory_size, format_memory_value_only, get_memory_
 
 class Dashboard(tk.Tk):
     # Constantes de configuração
-    WINDOW_TITLE = "⚡ OS DASHBOARD"
+    WINDOW_TITLE = "OS DASHBOARD"
     WINDOW_SIZE = "1200x800"
     BACKGROUND_COLOR = "#0a0a0a"
     UPDATE_INTERVAL = 1000
@@ -179,7 +179,7 @@ class Dashboard(tk.Tk):
         header_frame.pack_propagate(False)
 
         title_label = ttk.Label(
-            header_frame, text="⚡ SISTEMA OPERACIONAL DASHBOARD", style="Title.TLabel"
+            header_frame, text="SISTEMA OPERACIONAL DASHBOARD", style="Title.TLabel"
         )
         title_label.pack(side="left", pady=15)
 
@@ -188,11 +188,10 @@ class Dashboard(tk.Tk):
         self.tab_control.pack(expand=1, fill="both", padx=20, pady=(0, 20))
 
         tabs_config = [
-            ("global", "🌐 GLOBAL", self._create_global_tab),
-            ("process", "⚙️ PROCESSOS", self._create_process_tab),
-            ("memory", "💾 MEMÓRIA", self._create_memory_tab),
-            ("filesystem", "🗄️ SISTEMA DE ARQUIVOS", self._create_filesystem_tab),
-            ("resources", "🔗 RECURSOS POR PROCESSO", self._create_resources_tab),
+            ("global", "GLOBAL", self._create_global_tab),
+            ("process", "PROCESSOS", self._create_process_tab),
+            ("memory", "MEMÓRIA", self._create_memory_tab),
+            ("filesystem", "SISTEMA DE ARQUIVOS", self._create_filesystem_tab),
         ]
 
         self.tabs = {}
@@ -206,100 +205,17 @@ class Dashboard(tk.Tk):
             if callable(create_func):
                 create_func(tab_frame)
 
-    def _create_resources_tab(self, tab_frame: ttk.Frame):
-        """Cria aba para exibir recursos abertos/alocados por processo"""
-        import tkinter as tk
-        container = tk.Frame(tab_frame, bg=self.BACKGROUND_COLOR)
-        container.pack(fill="both", expand=True, padx=15, pady=15)
-
-        header = ttk.Label(
-            container, text="RECURSOS ABERTOS POR PROCESSO", style="Title.TLabel"
-        )
-        header.pack(anchor="w", pady=(0, 10))
-
-        # Frame de seleção de PID
-        pid_frame = tk.Frame(container, bg=self.BACKGROUND_COLOR)
-        pid_frame.pack(fill="x", pady=(0, 10))
-
-        pid_label = ttk.Label(pid_frame, text="PID do Processo:", style="Info.TLabel")
-        pid_label.pack(side="left", padx=(0, 8))
-
-        self.pid_entry = ttk.Entry(pid_frame, width=10)
-        self.pid_entry.pack(side="left")
-
-        fetch_btn = ttk.Button(pid_frame, text="Buscar Recursos", command=self._on_fetch_resources)
-        fetch_btn.pack(side="left", padx=(8, 0))
-
-        # Text widget para exibir recursos
-        self.resources_text = tk.Text(
-            container,
-            bg=self.COLORS["dark"],
-            fg=self.COLORS["text"],
-            font=("JetBrains Mono", 10),
-            wrap=tk.WORD,
-            state=tk.DISABLED,
-        )
-        self.resources_text.pack(fill="both", expand=True, pady=(10, 0))
-
-    def _on_fetch_resources(self):
-        """Busca e exibe recursos do processo informado no campo PID"""
-        pid_str = self.pid_entry.get()
-        if not pid_str.isdigit():
-            self._show_resources_output("PID inválido.")
-            return
-        pid = int(pid_str)
-        try:
-            resources = self.controller.system_info.get_process_resources(pid)
-        except Exception as e:
-            self._show_resources_output(f"Erro ao buscar recursos: {e}")
-            return
-        output = self._format_resources_output(pid, resources)
-        self._show_resources_output(output)
-
-    def _format_resources_output(self, pid, resources):
-        output = f"Recursos do processo {pid}:\n\n"
-        open_files = resources.get("open_files", [])
-        sockets = resources.get("sockets", [])
-        semaphores = resources.get("semaphores", [])
-
-        output += f"Arquivos abertos ({len(open_files)}):\n"
-        for f in open_files:
-            output += f"  [fd {f['fd']}] {f['target']}\n"
-        if not open_files:
-            output += "  Nenhum arquivo aberto encontrado.\n"
-
-        output += f"\nSockets ({len(sockets)}):\n"
-        for s in sockets:
-            output += f"  [fd {s['fd']}] {s['target']}\n"
-        if not sockets:
-            output += "  Nenhum socket encontrado.\n"
-
-        output += f"\nSemáforos/Mutexes ({len(semaphores)}):\n"
-        for sem in semaphores:
-            info_preview = sem['info'][:60].replace("\n", " ")
-            output += f"  [fd {sem['fd']}] {info_preview}...\n"
-        if not semaphores:
-            output += "  Nenhum semáforo/mutex encontrado.\n"
-
-        return output
-
-    def _show_resources_output(self, output):
-        self.resources_text.config(state="normal")
-        self.resources_text.delete(1.0, "end")
-        self.resources_text.insert("end", output)
-        self.resources_text.config(state="disabled")
-
     def _create_metric_card(
         self, parent: tk.Widget, title: str, key: str, unit: str = ""
     ) -> ttk.Label:
         card = ttk.Frame(parent, style="Card.TFrame")
-        card.pack(fill="x", pady=8, padx=5)
+        card.pack(fill="x", pady=5, padx=3)
 
         title_label = ttk.Label(card, text=title, style="Info.TLabel")
-        title_label.pack(anchor="w", padx=15, pady=(10, 5))
+        title_label.pack(anchor="w", padx=12, pady=(8, 3))
 
         value_label = ttk.Label(card, text=f"-- {unit}", style="Metric.TLabel")
-        value_label.pack(anchor="w", padx=15, pady=(0, 10))
+        value_label.pack(anchor="w", padx=12, pady=(0, 8))
 
         self.metric_labels[key] = value_label
         return value_label
@@ -373,84 +289,47 @@ class Dashboard(tk.Tk):
         self.cpu_canvas.get_tk_widget().pack(fill="both", expand=True)
 
     def _create_process_tab(self, tab_frame: ttk.Frame):
-        """Cria aba de processos com botão de seta para expandir/collapse threads, inspirado no exemplo customtkinter."""
+        """Cria aba de processos simplificada"""
         container = tk.Frame(tab_frame, bg=self.BACKGROUND_COLOR)
-        container.pack(fill="both", expand=True, padx=15, pady=15)
+        container.pack(fill="both", expand=True, padx=12, pady=12)
 
-        # Header da aba
-        header_frame = tk.Frame(container, bg=self.BACKGROUND_COLOR)
-        header_frame.pack(fill="x", pady=(0, 15))
-
-        title = ttk.Label(
-            header_frame, text="GERENCIADOR DE PROCESSOS", style="Title.TLabel"
-        )
-        title.pack(side="left")
-
-        # Métricas resumo
-        metrics_frame = tk.Frame(container, bg=self.BACKGROUND_COLOR)
-        metrics_frame.pack(fill="x", pady=(0, 15))
-
-        # Cards de métricas lado a lado
-        metrics_container = tk.Frame(metrics_frame, bg=self.BACKGROUND_COLOR)
-        metrics_container.pack(fill="x")
+        metrics_container = tk.Frame(container, bg=self.BACKGROUND_COLOR)
+        metrics_container.pack(fill="x", pady=(0, 10))
 
         process_card = ttk.Frame(metrics_container, style="Card.TFrame")
-        process_card.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        process_card.pack(side="left", fill="x", expand=True, padx=(0, 5))
 
         thread_card = ttk.Frame(metrics_container, style="Card.TFrame")
-        thread_card.pack(side="right", fill="x", expand=True, padx=(8, 0))
+        thread_card.pack(side="right", fill="x", expand=True, padx=(5, 0))
 
-        # Métrica de processos
-        proc_title = ttk.Label(
-            process_card, text="TOTAL DE PROCESSOS", style="Info.TLabel"
-        )
-        proc_title.pack(anchor="w", padx=15, pady=(10, 5))
+        proc_title = ttk.Label(process_card, text="PROCESSOS", style="Info.TLabel")
+        proc_title.pack(anchor="w", padx=12, pady=(8, 3))
 
-        self.metric_labels["total_processes"] = ttk.Label(
-            process_card, text="-- processos", style="Metric.TLabel"
-        )
-        self.metric_labels["total_processes"].pack(anchor="w", padx=15, pady=(0, 10))
+        self.metric_labels["total_processes"] = ttk.Label(process_card, text="-- processos", style="Metric.TLabel")
+        self.metric_labels["total_processes"].pack(anchor="w", padx=12, pady=(0, 8))
 
-        # Métrica de threads
-        thread_title = ttk.Label(
-            thread_card, text="TOTAL DE THREADS", style="Info.TLabel"
-        )
-        thread_title.pack(anchor="w", padx=15, pady=(10, 5))
+        thread_title = ttk.Label(thread_card, text="THREADS", style="Info.TLabel")
+        thread_title.pack(anchor="w", padx=12, pady=(8, 3))
 
-        self.metric_labels["total_threads"] = ttk.Label(
-            thread_card, text="-- threads", style="Metric.TLabel"
-        )
-        self.metric_labels["total_threads"].pack(anchor="w", padx=15, pady=(0, 10))
+        self.metric_labels["total_threads"] = ttk.Label(thread_card, text="-- threads", style="Metric.TLabel")
+        self.metric_labels["total_threads"].pack(anchor="w", padx=12, pady=(0, 8))
 
-        # Sub-abas para processos e threads
         self.process_tab_control = ttk.Notebook(container)
         self.process_tab_control.pack(expand=1, fill="both")
 
-        # Sub-aba de processos
         processes_frame = ttk.Frame(self.process_tab_control)
         self.process_tab_control.add(processes_frame, text="PROCESSOS ATIVOS")
 
         proc_container = tk.Frame(processes_frame, bg=self.BACKGROUND_COLOR)
-        proc_container.pack(fill="both", expand=True, padx=10, pady=10)
+        proc_container.pack(fill="both", expand=True, padx=8, pady=8)
 
-        proc_header = ttk.Label(
-            proc_container, text="TOP PROCESSOS POR MEMÓRIA", style="Info.TLabel"
-        )
-        proc_header.pack(anchor="w", pady=(0, 10))
-
-        # Colunas: seta, PID, USUÁRIO, PROCESSO, STATUS, MEMÓRIA, NÚMERO DE THREADS
-        proc_columns = ("Num", "PID", "USUÁRIO", "PROCESSO", "STATUS", "MEMÓRIA", "NÚMERO DE THREADS")
-        tree = ttk.Treeview(
-            proc_container,
-            columns=proc_columns,
-            show="headings",
-            style="Futuristic.Treeview"
-        )
+        proc_columns = ("Num", "PID", "USUÁRIO", "PROCESSO", "STATUS", "MEMÓRIA", "THREADS")
+        tree = ttk.Treeview(proc_container, columns=proc_columns, show="headings", style="Futuristic.Treeview")
         tree.heading("Num", text="")
-        tree.column("Num", width=40, anchor="w")
+        tree.column("Num", width=30, anchor="w")
         for col in proc_columns[1:]:
             tree.heading(col, text=col)
-            tree.column(col, anchor=tk.CENTER, width=120 if col != "PROCESSO" else 200)
+            tree.column(col, anchor=tk.CENTER, width=100 if col != "PROCESSO" else 180)
 
         scrollbar = ttk.Scrollbar(proc_container, orient="vertical", command=tree.yview)
         tree.configure(yscrollcommand=scrollbar.set)
@@ -469,31 +348,18 @@ class Dashboard(tk.Tk):
         self.process_tab_control.add(details_frame, text="DETALHES")
 
         details_container = tk.Frame(details_frame, bg=self.BACKGROUND_COLOR)
-        details_container.pack(fill="both", expand=True, padx=10, pady=10)
+        details_container.pack(fill="both", expand=True, padx=8, pady=8)
 
-        details_header = ttk.Label(
-            details_container,
-            text="DETALHES DO PROCESSO SELECIONADO",
-            style="Info.TLabel",
-        )
-        details_header.pack(anchor="w", pady=(0, 10))
+        details_header = ttk.Label(details_container, text="DETALHES DO PROCESSO", style="Info.TLabel")
+        details_header.pack(anchor="w", pady=(0, 8))
 
-        # Text widget para exibir detalhes
         details_text_frame = tk.Frame(details_container, bg=self.BACKGROUND_COLOR)
         details_text_frame.pack(fill="both", expand=True)
 
-        self.details_text = tk.Text(
-            details_text_frame,
-            bg=self.COLORS["dark"],
-            fg=self.COLORS["text"],
-            font=("JetBrains Mono", 10),
-            wrap=tk.WORD,
-            state=tk.DISABLED,
-        )
+        self.details_text = tk.Text(details_text_frame, bg=self.COLORS["dark"], fg=self.COLORS["text"], 
+                                   font=("JetBrains Mono", 9), wrap=tk.WORD, state=tk.DISABLED)
 
-        details_scrollbar = ttk.Scrollbar(
-            details_text_frame, orient="vertical", command=self.details_text.yview
-        )
+        details_scrollbar = ttk.Scrollbar(details_text_frame, orient="vertical", command=self.details_text.yview)
         self.details_text.configure(yscrollcommand=details_scrollbar.set)
 
         self.details_text.pack(side="left", fill="both", expand=True)
@@ -514,7 +380,7 @@ class Dashboard(tk.Tk):
             elif current_value == "▼":
                 self._collapse_threads_custom(row_id)
         elif col == "#2":
-            # Clique no PID/TID: mostra recursos em nova janela
+            # Clique no PID/TID: mostra recursos em nova janela E detalhes na aba
             values = tree.item(row_id, "values")
             if values and len(values) > 1:
                 pid_tid = str(values[1]).strip()
@@ -522,57 +388,67 @@ class Dashboard(tk.Tk):
                 if pid_tid.startswith("↳ TID:"):
                     tid = pid_tid.replace("↳ TID:", "").strip()
                     self._show_process_resources_window(tid, is_thread=True)
+                    # Para threads, mostra detalhes do processo pai
+                    # Busca o processo pai na árvore
+                    parent_item = tree.parent(row_id)
+                    if parent_item:
+                        parent_values = tree.item(parent_item, "values")
+                        if parent_values and len(parent_values) > 1:
+                            parent_pid = str(parent_values[1]).strip()
+                            self._show_process_details(parent_pid)
                 else:
                     self._show_process_resources_window(pid_tid, is_thread=False)
+                    self._show_process_details(pid_tid)
 
     def _show_process_resources_window(self, pid_tid, is_thread=False):
         """Abre uma nova janela com os recursos do processo ou thread."""
-        # Para threads, mostra recursos do processo principal (PID)
         pid = pid_tid
         if is_thread:
-            # Buscar o processo pai da thread
-            # Como não temos o mapeamento TID->PID, assume TID=PID (Linux threads)
-            # Ou pode-se mostrar mensagem informando limitação
-            msg = f"Exibindo recursos para TID {pid_tid}.\n\nNo Linux, threads compartilham recursos do processo principal.\nAbaixo estão os recursos do processo correspondente.\n\n"
+            msg = f"Recursos para TID {pid_tid}.\n\nThreads compartilham recursos do processo principal.\n\n"
         else:
-            msg = f"Exibindo recursos para PID {pid_tid}.\n\n"
+            msg = f"Recursos para PID {pid_tid}.\n\n"
+        
         try:
             resources = self.controller.system_info.get_process_resources(int(pid))
         except Exception as e:
             resources = None
-            msg += f"Erro ao obter recursos: {e}"
+            msg += f"Erro: {e}"
 
         win = tk.Toplevel(self)
-        win.title(f"Recursos do processo {pid_tid}")
-        win.geometry("700x500")
+        win.title(f"Recursos - {pid_tid}")
+        win.geometry("600x400")
         win.configure(bg=self.BACKGROUND_COLOR)
-        # Botão fechar
-        close_btn = tk.Button(win, text="Fechar", command=win.destroy, bg=self.COLORS["primary"], fg=self.COLORS["background"], font=("JetBrains Mono", 10, "bold"), relief="flat", padx=10, pady=5, cursor="hand2")
-        close_btn.pack(side="bottom", pady=10)
-        # Texto
-        text = tk.Text(win, bg=self.COLORS["dark"], fg=self.COLORS["text"], font=("JetBrains Mono", 10), wrap=tk.WORD)
-        text.pack(fill="both", expand=True, padx=15, pady=15)
+        
+        close_btn = tk.Button(win, text="Fechar", command=win.destroy, 
+                             bg=self.COLORS["primary"], fg=self.COLORS["background"], 
+                             font=("JetBrains Mono", 10, "bold"), relief="flat", 
+                             padx=8, pady=4)
+        close_btn.pack(side="bottom", pady=8)
+        
+        text = tk.Text(win, bg=self.COLORS["dark"], fg=self.COLORS["text"], 
+                      font=("JetBrains Mono", 9), wrap=tk.WORD)
+        text.pack(fill="both", expand=True, padx=12, pady=12)
         text.insert("end", msg)
+        
         if resources:
-            # Arquivos abertos
             open_files = resources.get("open_files", [])
             text.insert("end", f"Arquivos abertos ({len(open_files)}):\n")
             for f in open_files:
                 text.insert("end", f"  [fd {f['fd']}] {f['target']}\n")
             if not open_files:
-                text.insert("end", "  Nenhum arquivo aberto encontrado.\n")
-            # Sockets
+                text.insert("end", "  Nenhum arquivo encontrado.\n")
+            
             sockets = resources.get("sockets", [])
             text.insert("end", f"\nSockets ({len(sockets)}):\n")
             for s in sockets:
                 text.insert("end", f"  [fd {s['fd']}] {s['target']}\n")
             if not sockets:
                 text.insert("end", "  Nenhum socket encontrado.\n")
-            # Semáforos/Mutexes
+            
             semaphores = resources.get("semaphores", [])
             text.insert("end", f"\nSemáforos/Mutexes ({len(semaphores)}):\n")
             for sem in semaphores:
-                info_preview = sem['info'][:60].replace("\n", " ")
+                info_preview = sem['info'][:50].replace("\n", " ")
                 text.insert("end", f"  [fd {sem['fd']}] {info_preview}...\n")
             if not semaphores:
                 text.insert("end", "  Nenhum semáforo/mutex encontrado.\n")
@@ -687,7 +563,7 @@ class Dashboard(tk.Tk):
         tree.item(item_id, open=True)
 
     def _show_process_details(self, pid):
-        """Mostra detalhes completos do processo"""
+        """Mostra detalhes do processo de forma mais compacta"""
         details = self.controller.process_info.get_process_details(pid)
         page_usage = self.controller.process_info.get_page_usage_by_pid(pid)
 
@@ -695,167 +571,93 @@ class Dashboard(tk.Tk):
         self.details_text.delete(1.0, tk.END)
 
         if details:
-            output = f"🔍 DETALHES DO PROCESSO {pid}\n"
-            output += "=" * 50 + "\n\n"
+            output = f"PROCESSO {pid}\n"
+            output += "=" * 30 + "\n\n"
 
-            # Informações básicas
             basic_info = [
                 ("Nome", details.get("Name", "N/A")),
                 ("Estado", details.get("State", "N/A")),
-                ("PID", details.get("Pid", "N/A")),
                 ("PPID", details.get("PPid", "N/A")),
-                ("Usuário (UID)", details.get("Uid", "N/A")),
-                ("Grupo (GID)", details.get("Gid", "N/A")),
-                ("Threads", details.get("Threads Count", "N/A")),
+                ("Usuário ID", details.get("Uid", "N/A")),
             ]
 
-            output += "📋 INFORMAÇÕES BÁSICAS:\n"
             for label, value in basic_info:
-                output += f"  {label}: {value}\n"
+                output += f"{label}: {value}\n"
 
-            # Informações de memória
             if any(key.startswith("Vm") for key in details.keys()):
-                output += "\n💾 INFORMAÇÕES DE MEMÓRIA:\n"
-                memory_keys = [
-                    "VmPeak",
-                    "VmSize",
-                    "VmLck",
-                    "VmPin",
-                    "VmHWM",
-                    "VmRSS",
-                    "VmData",
-                    "VmStk",
-                    "VmExe",
-                    "VmLib",
-                    "VmSwap",
-                ]
+                output += "\nMEMÓRIA:\n"
+                memory_keys = ["VmSize", "VmRSS", "VmData", "VmStk"]
                 for key in memory_keys:
                     if key in details:
                         output += f"  {key}: {details[key]}\n"
 
-            # Uso de páginas
             if page_usage and any(page_usage.values()):
-                output += "\nUSO DE PÁGINAS:\n"
-                output += f"  Total: {page_usage.get('total', 0)} kB\n"
-                output += f"  Código: {page_usage.get('code', 0)} kB\n"
-                output += f"  Heap: {page_usage.get('heap', 0)} kB\n"
-                output += f"  Stack: {page_usage.get('stack', 0)} kB\n"
+                output += f"\nPÁGINAS: {page_usage.get('total', 0)} kB\n"
 
-            # Linha de comando
             if "Command Line" in details and details["Command Line"]:
-                output += f"\nLINHA DE COMANDO:\n  {details['Command Line']}\n"
-
+                output += f"\nComando: {details['Command Line']}\n"
+                
+            # Mudar automaticamente para a aba de detalhes
+            self.process_tab_control.select(1)  # Seleciona a segunda aba (DETALHES)
         else:
-            output = f"❌ Não foi possível obter detalhes do processo {pid}\n"
-            output += "O processo pode ter terminado ou você não tem permissão para acessá-lo."
+            output = f"Erro: Não foi possível obter detalhes do processo {pid}"
 
         self.details_text.insert(tk.END, output)
         self.details_text.config(state=tk.DISABLED)
 
     def _create_memory_tab(self, tab_frame: ttk.Frame):
-        """Cria aba de memória responsiva e otimizada"""
+        """Cria aba de memória simplificada"""
         container = tk.Frame(tab_frame, bg=self.BACKGROUND_COLOR)
-        container.pack(fill="both", expand=True, padx=15, pady=15)
+        container.pack(fill="both", expand=True, padx=12, pady=12)
 
-        # Header da aba
-        header_frame = tk.Frame(container, bg=self.BACKGROUND_COLOR)
-        header_frame.pack(fill="x", pady=(0, 15))
-
-        title = ttk.Label(
-            header_frame, text="ANÁLISE DE MEMÓRIA", style="Title.TLabel"
-        )
-        title.pack(side="left")
-
-        # Layout principal responsivo
         main_layout = tk.Frame(container, bg=self.BACKGROUND_COLOR)
         main_layout.pack(fill="both", expand=True)
 
-        # Painel esquerdo: Métricas (35% da largura)
         self._create_memory_metrics_panel(main_layout)
-
-        # Painel direito: Gráfico (65% da largura)
         self._create_memory_chart_panel(main_layout)
 
     def _create_memory_metrics_panel(self, parent: tk.Widget):
         metrics_frame = ttk.Frame(parent, style="Card.TFrame")
-        metrics_frame.pack(side="left", fill="both", padx=(0, 8))
-        metrics_frame.configure(width=350)
+        metrics_frame.pack(side="left", fill="both", padx=(0, 6))
+        metrics_frame.configure(width=320)
         metrics_frame.pack_propagate(False)
 
         header_frame = tk.Frame(metrics_frame, bg=self.COLORS["card"])
-        header_frame.pack(fill="x", padx=15, pady=15)
+        header_frame.pack(fill="x", padx=12, pady=12)
 
-        header = ttk.Label(
-            header_frame, text="📊 MÉTRICAS PRINCIPAIS", style="Info.TLabel"
-        )
+        header = ttk.Label(header_frame, text="MÉTRICAS", style="Info.TLabel")
         header.pack(side="left")
 
-        self.toggle_button = tk.Button(
-            header_frame,
-            text="Exibir Mais",
-            command=self._toggle_memory_details,
-            bg=self.COLORS["primary"],
-            fg=self.COLORS["background"],
-            font=("JetBrains Mono", 9, "bold"),
-            relief="flat",
-            padx=10,
-            pady=5,
-            cursor="hand2",
-        )
+        self.toggle_button = tk.Button(header_frame, text="Mais", command=self._toggle_memory_details,
+                                     bg=self.COLORS["primary"], fg=self.COLORS["background"], 
+                                     font=("JetBrains Mono", 8, "bold"), relief="flat", 
+                                     padx=8, pady=3, cursor="hand2")
         self.toggle_button.pack(side="right")
 
         main_scroll_container = tk.Frame(metrics_frame, bg=self.COLORS["card"])
-        main_scroll_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        main_scroll_container.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
-        self.main_canvas = tk.Canvas(
-            main_scroll_container, bg=self.COLORS["card"], highlightthickness=0
-        )
-        main_scrollbar = ttk.Scrollbar(
-            main_scroll_container, orient="vertical", command=self.main_canvas.yview
-        )
+        self.main_canvas = tk.Canvas(main_scroll_container, bg=self.COLORS["card"], highlightthickness=0)
+        main_scrollbar = ttk.Scrollbar(main_scroll_container, orient="vertical", command=self.main_canvas.yview)
         self.main_scrollable_frame = tk.Frame(self.main_canvas, bg=self.COLORS["card"])
 
-        self.main_scrollable_frame.bind(
-            "<Configure>",
-            lambda e: self.main_canvas.configure(
-                scrollregion=self.main_canvas.bbox("all")
-            ),
-        )
-        self.main_canvas.create_window(
-            (0, 0), window=self.main_scrollable_frame, anchor="nw"
-        )
+        self.main_scrollable_frame.bind("<Configure>", 
+                                       lambda e: self.main_canvas.configure(scrollregion=self.main_canvas.bbox("all")))
+        self.main_canvas.create_window((0, 0), window=self.main_scrollable_frame, anchor="nw")
         self.main_canvas.configure(yscrollcommand=main_scrollbar.set)
 
-        self.main_canvas.bind(
-            "<Enter>",
-            lambda e: self.main_canvas.bind_all(
-                "<Button-4>", self._on_mousewheel_linux
-            ),
-        )
-        self.main_canvas.bind(
-            "<Leave>", lambda e: self.main_canvas.unbind_all("<Button-4>")
-        )
-        self.main_canvas.bind(
-            "<Enter>",
-            lambda e: self.main_canvas.bind_all(
-                "<Button-5>", self._on_mousewheel_linux
-            ),
-        )
-        self.main_canvas.bind(
-            "<Leave>", lambda e: self.main_canvas.unbind_all("<Button-5>")
-        )
+        self.main_canvas.bind("<Enter>", lambda e: self.main_canvas.bind_all("<Button-4>", self._on_mousewheel_linux))
+        self.main_canvas.bind("<Leave>", lambda e: self.main_canvas.unbind_all("<Button-4>"))
+        self.main_canvas.bind("<Enter>", lambda e: self.main_canvas.bind_all("<Button-5>", self._on_mousewheel_linux))
+        self.main_canvas.bind("<Leave>", lambda e: self.main_canvas.unbind_all("<Button-5>"))
 
         self.main_canvas.pack(side="left", fill="both", expand=True)
         main_scrollbar.pack(side="right", fill="y")
 
-        self.main_metrics_frame = tk.Frame(
-            self.main_scrollable_frame, bg=self.COLORS["card"]
-        )
-        self.main_metrics_frame.pack(fill="x", pady=(0, 10))
+        self.main_metrics_frame = tk.Frame(self.main_scrollable_frame, bg=self.COLORS["card"])
+        self.main_metrics_frame.pack(fill="x", pady=(0, 8))
 
-        self.extra_details_frame = tk.Frame(
-            self.main_scrollable_frame, bg=self.COLORS["card"]
-        )
+        self.extra_details_frame = tk.Frame(self.main_scrollable_frame, bg=self.COLORS["card"])
 
         self._create_metric_groups(self.main_metrics_frame)
         self._create_extra_memory_details()
@@ -863,14 +665,14 @@ class Dashboard(tk.Tk):
     def _create_metric_groups(self, parent: tk.Widget):
         """Cria grupos de métricas organizados"""
         groups = {
-            "💽 MEMÓRIA FÍSICA": [
+            "MEMÓRIA FÍSICA": [
                 ("Total", "mem_total_chart"),
                 ("Em Uso", "mem_used_chart"),
                 ("Livre", "mem_free_chart"),
                 ("% Uso", "mem_percent"),
             ],
-            "🔄 CACHE/BUFFER": [("Cache", "mem_cache"), ("Buffers", "mem_buffers")],
-            "💿 SWAP": [("Swap Total", "mem_virtual")],
+            "CACHE/BUFFER": [("Cache", "mem_cache"), ("Buffers", "mem_buffers")],
+            "SWAP": [("Swap Total", "mem_virtual")],
         }
 
         for group_name, metrics in groups.items():
@@ -925,7 +727,7 @@ class Dashboard(tk.Tk):
         # Título da seção
         details_title = ttk.Label(
             self.extra_details_frame,
-            text="🔍 DETALHES COMPLETOS",
+            text="DETALHES COMPLETOS",
             font=("JetBrains Mono", 11, "bold"),
             foreground=self.COLORS["primary"],
             background=self.COLORS["card"],
@@ -946,12 +748,12 @@ class Dashboard(tk.Tk):
     def _toggle_memory_details(self):
         self.show_all_memory_details = not self.show_all_memory_details
         if self.show_all_memory_details:
-            self.extra_details_frame.pack(fill="both", expand=True, pady=(10, 0))
-            self.toggle_button.config(text="Exibir Menos")
+            self.extra_details_frame.pack(fill="both", expand=True, pady=(8, 0))
+            self.toggle_button.config(text="Menos")
             self._populate_memory_details()
         else:
             self.extra_details_frame.pack_forget()
-            self.toggle_button.config(text="Exibir Mais")
+            self.toggle_button.config(text="Mais")
         self.main_canvas.update_idletasks()
         self.main_canvas.configure(scrollregion=self.main_canvas.bbox("all"))
 
@@ -1239,21 +1041,15 @@ class Dashboard(tk.Tk):
         self._update_memory_details_if_visible()
 
     def _create_filesystem_tab(self, tab_frame: ttk.Frame):
-        """Cria aba do sistema de arquivos com informações das partições"""
+        """Cria aba do sistema de arquivos simplificada"""
         container = tk.Frame(tab_frame, bg=self.BACKGROUND_COLOR)
-        container.pack(fill="both", expand=True, padx=15, pady=15)
+        container.pack(fill="both", expand=True, padx=12, pady=12)
 
-        header = ttk.Label(
-            container, text="SISTEMA DE ARQUIVOS - PARTIÇÕES", style="Title.TLabel"
-        )
-        header.pack(anchor="w", pady=(0, 15))
-
-        columns = ("Partição", "Ponto de Montagem", "Total", "Usado", "Livre", "% Usado")
+        columns = ("Partição", "Montagem", "Total", "Usado", "Livre", "% Usado")
         tree = self._create_treeview(container, columns, "filesystem")
 
-        # Ajusta largura das colunas
         for idx, col in enumerate(columns):
-            tree.column(col, width=120 if idx > 1 else 100, anchor="center")
+            tree.column(col, width=100 if idx > 1 else 80, anchor="center")
             tree.heading(col, text=col)
 
         self._update_filesystem_tab()
