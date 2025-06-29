@@ -500,7 +500,7 @@ class Dashboard(tk.Tk):
         details_scrollbar.pack(side="right", fill="y")
 
     def _on_process_arrow_click(self, event):
-        """Expande/collapse threads ao clicar na seta, inspirado no seu exemplo."""
+        """Expande/collapse threads ao clicar na seta OU mostra recursos ao clicar no PID/TID."""
         tree = self.trees["processes"]
         col = tree.identify_column(event.x)
         row_id = tree.identify_row(event.y)
@@ -514,11 +514,69 @@ class Dashboard(tk.Tk):
             elif current_value == "▼":
                 self._collapse_threads_custom(row_id)
         elif col == "#2":
-            # Clique no PID: mostra detalhes
+            # Clique no PID/TID: mostra recursos em nova janela
             values = tree.item(row_id, "values")
             if values and len(values) > 1:
-                pid = str(values[1])
-                self._show_process_details(pid)
+                pid_tid = str(values[1]).strip()
+                # Se for thread (TID), extrai apenas o número
+                if pid_tid.startswith("↳ TID:"):
+                    tid = pid_tid.replace("↳ TID:", "").strip()
+                    self._show_process_resources_window(tid, is_thread=True)
+                else:
+                    self._show_process_resources_window(pid_tid, is_thread=False)
+
+    def _show_process_resources_window(self, pid_tid, is_thread=False):
+        """Abre uma nova janela com os recursos do processo ou thread."""
+        # Para threads, mostra recursos do processo principal (PID)
+        pid = pid_tid
+        if is_thread:
+            # Buscar o processo pai da thread
+            # Como não temos o mapeamento TID->PID, assume TID=PID (Linux threads)
+            # Ou pode-se mostrar mensagem informando limitação
+            msg = f"Exibindo recursos para TID {pid_tid}.\n\nNo Linux, threads compartilham recursos do processo principal.\nAbaixo estão os recursos do processo correspondente.\n\n"
+        else:
+            msg = f"Exibindo recursos para PID {pid_tid}.\n\n"
+        try:
+            resources = self.controller.system_info.get_process_resources(int(pid))
+        except Exception as e:
+            resources = None
+            msg += f"Erro ao obter recursos: {e}"
+
+        win = tk.Toplevel(self)
+        win.title(f"Recursos do processo {pid_tid}")
+        win.geometry("700x500")
+        win.configure(bg=self.BACKGROUND_COLOR)
+        # Botão fechar
+        close_btn = tk.Button(win, text="Fechar", command=win.destroy, bg=self.COLORS["primary"], fg=self.COLORS["background"], font=("JetBrains Mono", 10, "bold"), relief="flat", padx=10, pady=5, cursor="hand2")
+        close_btn.pack(side="bottom", pady=10)
+        # Texto
+        text = tk.Text(win, bg=self.COLORS["dark"], fg=self.COLORS["text"], font=("JetBrains Mono", 10), wrap=tk.WORD)
+        text.pack(fill="both", expand=True, padx=15, pady=15)
+        text.insert("end", msg)
+        if resources:
+            # Arquivos abertos
+            open_files = resources.get("open_files", [])
+            text.insert("end", f"Arquivos abertos ({len(open_files)}):\n")
+            for f in open_files:
+                text.insert("end", f"  [fd {f['fd']}] {f['target']}\n")
+            if not open_files:
+                text.insert("end", "  Nenhum arquivo aberto encontrado.\n")
+            # Sockets
+            sockets = resources.get("sockets", [])
+            text.insert("end", f"\nSockets ({len(sockets)}):\n")
+            for s in sockets:
+                text.insert("end", f"  [fd {s['fd']}] {s['target']}\n")
+            if not sockets:
+                text.insert("end", "  Nenhum socket encontrado.\n")
+            # Semáforos/Mutexes
+            semaphores = resources.get("semaphores", [])
+            text.insert("end", f"\nSemáforos/Mutexes ({len(semaphores)}):\n")
+            for sem in semaphores:
+                info_preview = sem['info'][:60].replace("\n", " ")
+                text.insert("end", f"  [fd {sem['fd']}] {info_preview}...\n")
+            if not semaphores:
+                text.insert("end", "  Nenhum semáforo/mutex encontrado.\n")
+        text.config(state="disabled")
 
     def _expand_threads_custom(self, item_id):
         tree = self.trees["processes"]
