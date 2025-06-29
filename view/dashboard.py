@@ -373,7 +373,7 @@ class Dashboard(tk.Tk):
         self.cpu_canvas.get_tk_widget().pack(fill="both", expand=True)
 
     def _create_process_tab(self, tab_frame: ttk.Frame):
-        """Cria aba de processos com sub-abas para processos e threads"""
+        """Cria aba de processos com botão de seta para expandir/collapse threads, inspirado no exemplo customtkinter."""
         container = tk.Frame(tab_frame, bg=self.BACKGROUND_COLOR)
         container.pack(fill="both", expand=True, padx=15, pady=15)
 
@@ -438,12 +438,31 @@ class Dashboard(tk.Tk):
         )
         proc_header.pack(anchor="w", pady=(0, 10))
 
-        proc_columns = ("PID", "USUÁRIO", "PROCESSO", "STATUS", "MEMÓRIA", "NÚMERO DE THREADS")
-        self._create_treeview(proc_container, proc_columns, "processes")
+        # Colunas: seta, PID, USUÁRIO, PROCESSO, STATUS, MEMÓRIA, NÚMERO DE THREADS
+        proc_columns = ("Num", "PID", "USUÁRIO", "PROCESSO", "STATUS", "MEMÓRIA", "NÚMERO DE THREADS")
+        tree = ttk.Treeview(
+            proc_container,
+            columns=proc_columns,
+            show="headings",
+            style="Futuristic.Treeview"
+        )
+        tree.heading("Num", text="")
+        tree.column("Num", width=40, anchor="w")
+        for col in proc_columns[1:]:
+            tree.heading(col, text=col)
+            tree.column(col, anchor=tk.CENTER, width=120 if col != "PROCESSO" else 200)
 
-        # Controle para expansão de threads
+        scrollbar = ttk.Scrollbar(proc_container, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        self.trees["processes"] = tree
         self._expanded_process = None
         self._thread_items = []
+
+        # Bind para clique na Treeview (seta e detalhes)
+        tree.bind("<Button-1>", self._on_process_arrow_click)
 
         # Sub-aba de detalhes
         details_frame = ttk.Frame(self.process_tab_control)
@@ -480,8 +499,75 @@ class Dashboard(tk.Tk):
         self.details_text.pack(side="left", fill="both", expand=True)
         details_scrollbar.pack(side="right", fill="y")
 
-        # Bind para mostrar detalhes quando processo for selecionado
-        self.trees["processes"].bind("<ButtonRelease-1>", self._on_process_select)
+    def _on_process_arrow_click(self, event):
+        """Expande/collapse threads ao clicar na seta, inspirado no seu exemplo."""
+        tree = self.trees["processes"]
+        col = tree.identify_column(event.x)
+        row_id = tree.identify_row(event.y)
+        if not row_id:
+            return
+        # Só reage à coluna da seta
+        if col == "#1":
+            current_value = tree.set(row_id, "Num")
+            if current_value == "▶":
+                self._expand_threads_custom(row_id)
+            elif current_value == "▼":
+                self._collapse_threads_custom(row_id)
+        elif col == "#2":
+            # Clique no PID: mostra detalhes
+            values = tree.item(row_id, "values")
+            if values and len(values) > 1:
+                pid = str(values[1])
+                self._show_process_details(pid)
+
+    def _expand_threads_custom(self, item_id):
+        tree = self.trees["processes"]
+        # Colapsa qualquer outro processo expandido
+        if self._expanded_process and self._expanded_process != item_id:
+            self._collapse_threads_custom(self._expanded_process)
+        # Busca threads do processo
+        values = tree.item(item_id, "values")
+        data = self.controller.get_data()
+        process = None
+        for proc in data.get("top_processes", []):
+            if str(proc.get("PID")) == str(values[1]):
+                process = proc
+                break
+        if not process:
+            return
+        threads = process.get("Threads", [])
+        self._thread_items = []
+        for thread in threads:
+            thread_id = tree.insert(
+                item_id,
+                tk.END,
+                values=(
+                    "",
+                    f"↳ TID: {thread.get('TID', '-')} ",
+                    thread.get("User", "-"),
+                    f"↳ {thread.get('Name', '-')} ",
+                    thread.get("Status", "-"),
+                    "-",  # Memória não detalhada por thread
+                    "-",  # Threads por thread não faz sentido
+                ),
+                tags=("thread",)
+            )
+            self._thread_items.append(thread_id)
+        tree.set(item_id, "Num", value="▼")
+        tree.item(item_id, open=True)  # Garante que as threads fiquem visíveis
+        self._expanded_process = item_id
+
+    def _collapse_threads_custom(self, item_id):
+        tree = self.trees["processes"]
+        # Remove todos os filhos threads
+        children = tree.get_children(item_id)
+        for child in children:
+            if "thread" in tree.item(child, "tags"):
+                tree.delete(child)
+        tree.set(item_id, "Num", value="▶")
+        tree.item(item_id, open=False)  # Garante que o processo fique fechado
+        self._expanded_process = None
+        self._thread_items = []
 
     def _on_process_select(self, event):
         """Exibe detalhes do processo selecionado e expande/collapse threads"""
@@ -1027,16 +1113,20 @@ class Dashboard(tk.Tk):
         if "total_threads" in self.metric_labels:
             self.metric_labels["total_threads"].config(text=f"{total_threads} threads")
 
-        # Atualizar tabela de processos
+        # --- Preservar expansão ---
         proc_tree = self.trees.get("processes")
+        expanded_pid = None
+        if self._expanded_process:
+            # Tentar obter o PID do processo expandido antes de limpar
+            try:
+                values = proc_tree.item(self._expanded_process, "values")
+                if values and len(values) > 1:
+                    expanded_pid = str(values[1])
+            except Exception:
+                expanded_pid = None
+
+        # Atualizar tabela de processos
         if proc_tree:
-            # Salvar PID do processo expandido (se houver)
-            expanded_pid = None
-            if self._expanded_process:
-                item = proc_tree.item(self._expanded_process)
-                values = item.get("values", [])
-                if values:
-                    expanded_pid = str(values[0])
             # Limpar dados anteriores
             for item in proc_tree.get_children():
                 proc_tree.delete(item)
@@ -1044,7 +1134,7 @@ class Dashboard(tk.Tk):
             self._thread_items = []
             # Inserir novos dados
             top_processes = data.get("top_processes", [])
-            pid_to_itemid = {}
+            pid_to_item = {}
             if isinstance(top_processes, list):
                 for proc in top_processes:
                     try:
@@ -1057,6 +1147,7 @@ class Dashboard(tk.Tk):
                             "",
                             tk.END,
                             values=(
+                                "▶",
                                 str(proc.get("PID", "N/A")),
                                 str(proc.get("User", "N/A"))[:15],
                                 str(proc.get("Name", "N/A"))[:25],
@@ -1065,38 +1156,14 @@ class Dashboard(tk.Tk):
                                 str(proc.get("Threads Count", "N/A")),
                             ),
                         )
-                        pid_to_itemid[str(proc.get("PID", "N/A"))] = item_id
+                        pid_to_item[str(proc.get("PID", "N/A"))] = item_id
                     except Exception as e:
                         print(f"Erro ao inserir processo: {e}")
                         continue
-            # Reexpandir threads do processo expandido, se aplicável
-            if expanded_pid and expanded_pid in pid_to_itemid:
-                item_id = pid_to_itemid[expanded_pid]
-                # Buscar threads do processo
-                process = None
-                for proc in top_processes:
-                    if str(proc.get("PID")) == expanded_pid:
-                        process = proc
-                        break
-                if process:
-                    threads = process.get("Threads", [])
-                    for thread in threads:
-                        thread_id = proc_tree.insert(
-                            item_id,
-                            tk.END,
-                            values=(
-                                f"↳ TID: {thread.get('TID', '-')} ",
-                                thread.get("User", "-"),
-                                f"↳ {thread.get('Name', '-')} ",
-                                thread.get("Status", "-"),
-                                "-",  # Memória não detalhada por thread
-                                "-",  # Threads por thread não faz sentido
-                            ),
-                            tags=("thread",)
-                        )
-                        self._thread_items.append(thread_id)
-                    self._expanded_process = item_id
-                    proc_tree.item(item_id, open=True)
+
+            # --- Restaurar expansão se possível ---
+            if expanded_pid and expanded_pid in pid_to_item:
+                self._expand_threads_custom(pid_to_item[expanded_pid])
 
     def _update_memory_details(self):
         tree = self.trees.get("memory_details")
