@@ -87,7 +87,7 @@ class ProcessInfo:
                             process_data["memory_kb"] = int(line.split()[1])
                         except (ValueError, IndexError):
                             pass
-                    elif line.startswith("Threads:"): # número de threads do processo
+                    elif line.startswith("Threads:"):  # número de threads do processo
                         try:
                             process_data["thread_count"] = int(line.split()[1])
                         except (ValueError, IndexError):
@@ -98,9 +98,7 @@ class ProcessInfo:
 
         return process_data
 
-    def _collect_threads_for_process(
-        self, pid: str, process_data: dict
-    ) -> list:
+    def _collect_threads_for_process(self, pid: str, process_data: dict) -> list:
         """
         coleta informações de threads para um processo específico
 
@@ -164,9 +162,7 @@ class ProcessInfo:
                     "Status": process_data["status"],
                     "Memory": process_data["memory_kb"],
                     "Threads Count": process_data["thread_count"],
-                    "Threads": self._collect_threads_for_process(
-                        pid, process_data
-                    )
+                    "Threads": self._collect_threads_for_process(pid, process_data),
                 }
             )
 
@@ -208,17 +204,6 @@ class ProcessInfo:
         )
 
         return sorted_processes[:limit]
-
-    def get_process_by_pid(self, pid: str) -> int:
-        # obtém uso de memória de um processo específico
-        try:
-            with open(os.path.join(PROC_DIR, str(pid), "status")) as f:
-                for line in f:
-                    if line.startswith("VmRSS:"):
-                        return int(line.split()[1])
-        except (FileNotFoundError, ValueError):
-            pass
-        return None
 
     def get_page_usage_by_pid(self, pid: str) -> dict:
         """

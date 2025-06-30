@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 # caminhos dos arquivos de sistema no Linux
 CPU_PATH = "/proc/stat"  # arquivo com estatísticas da CPU
 MEM_PATH = "/proc/meminfo"  # arquivo com informações de memória
+MOUNTS_PATH = "/proc/mounts"  # arquivo com informações de partições montadas
 
 
 class MemoryInfo:
@@ -36,7 +37,7 @@ class MemoryInfo:
         """
 
         # Lê a primeira linha do /proc/stat que contém estatísticas globais da CPU
-        with open("/proc/stat", "r") as f:
+        with open(CPU_PATH, "r") as f:
             lines = f.readlines()
             parts = lines[0].split()  # Separa os valores da linha 'cpu'
 
@@ -103,11 +104,11 @@ class MemoryInfo:
         self.mem_info = self.get_memory_info()
 
         # extrai valores principais (todos em kB)
-        mem_total = self.mem_info["MemTotal"]  
+        mem_total = self.mem_info["MemTotal"]
         mem_free = self.mem_info["MemFree"]  # memória completamente livre
         mem_available = self.mem_info["MemAvailable"]  # memória disponível para uso
         buffers = self.mem_info["Buffers"]
-        cached = self.mem_info["Cached"]  
+        cached = self.mem_info["Cached"]
         swap_total = self.mem_info["SwapTotal"]  # espaço total de swap
 
         # calcula memória realmente em uso pelos processos
@@ -118,14 +119,14 @@ class MemoryInfo:
 
         return {
             "used_memory": used_memory,
-            "cached_memory": cached,  
+            "cached_memory": cached,
             "available_memory": mem_available,
-            "total_memory": mem_total, 
+            "total_memory": mem_total,
             "swap_total": swap_total,
             "free_memory": mem_free,
             "buffers": buffers,
-            "cached": cached,  
-            "mem_percent_usage": mem_percent_usage,  
+            "cached": cached,
+            "mem_percent_usage": mem_percent_usage,
         }
 
     def get_disk_partitions(self) -> list:
@@ -136,23 +137,23 @@ class MemoryInfo:
                 parts = line.split()
                 if len(parts) >= 4:
                     device = parts[3]
-                    partitions.append(device)     
+                    partitions.append(device)
         return partitions
 
     def get_partition_usage(self, partition_name) -> Optional[Dict[str, float]]:
         """
         Obtém informações de uso de uma partição específica
-        """     
-        with open("/proc/mounts", "r") as f:
+        """
+        with open(MOUNTS_PATH, "r") as f:
             mounts = f.readlines()
             for mount in mounts:
                 if partition_name in mount:
                     mount_info = mount.split()
-                    mount_path = mount_info[1]  
+                    mount_path = mount_info[1]
                     break
             else:
                 mount_path = None
-        
+
         if mount_path:
             usage = os.statvfs(mount_path)
             total = usage.f_frsize * usage.f_blocks
@@ -166,9 +167,9 @@ class MemoryInfo:
                 "total_size": total,
                 "used_size": used,
                 "free_size": free,
-                "percent_usage": percent_usage
+                "percent_usage": percent_usage,
             }
-        
+
         return None  # partição não montada ou não encontrada
 
     def get_process_open_files(self, pid: int) -> List[dict]:
@@ -217,9 +218,8 @@ class MemoryInfo:
 
     def get_process_semaphores(self, pid: int) -> List[dict]:
         """
-        Retorna uma lista de semáforos/mutexes abertos pelo processo (Linux: /proc/[pid]/sysvipc/sem ou /proc/[pid]/fdinfo)
+        Retorna uma lista de semáforos/mutexes abertos pelo processo (Linux: /proc/[pid]/fdinfo)
         """
-        # No Linux moderno, semáforos POSIX podem ser vistos em /proc/[pid]/fdinfo
         semaphores = []
         fdinfo_path = f"/proc/{pid}/fdinfo"
         if not os.path.exists(fdinfo_path):
@@ -246,27 +246,30 @@ class MemoryInfo:
         return {
             "open_files": self.get_process_open_files(pid),
             "sockets": self.get_process_sockets(pid),
-            "semaphores": self.get_process_semaphores(pid)
+            "semaphores": self.get_process_semaphores(pid),
         }
+
     def get_disk_partition_usage(self) -> List[Dict[str, float]]:
         """
         Obtém informações de uso de todas as partições montadas
         """
         partitions = self.get_disk_partitions()
         partition_usages = []
-        
+
         for partition in partitions:
             usage = self.get_partition_usage(partition)
             if usage:
                 partition_usages.append(usage)
-        
+
         return partition_usages
+
 
 # teste
 if __name__ == "__main__":
     mem_info_obj = MemoryInfo()
     # Exemplo: mostrar recursos do processo atual
     import os
+
     pid = os.getpid()
     print(f"Recursos do processo {pid}:")
     print(mem_info_obj.get_process_resources(pid))

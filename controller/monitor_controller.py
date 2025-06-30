@@ -27,15 +27,13 @@ class MonitorController:
         self._data_lock = threading.Lock()
 
         # Instâncias dos modelos de dados
-        self.system_info = MemoryInfo()  # Coleta informações de CPU e memória
-        self.process_info = ProcessInfo()  # Coleta informações de processos e threads
-        self.file_info = FileInfo()  # Coleta informações de arquivos
+        self.system_info = MemoryInfo()
+        self.process_info = ProcessInfo()
+        self.file_info = FileInfo()
 
-        # Dicionário para todos dados coletados
         self.data: dict = {}
 
     def start(self):
-        # Inicia a thread de coleta de dados
         self._running = True
         self.thread.start()
 
@@ -68,21 +66,20 @@ class MonitorController:
                 # Conta total de threads no sistema
                 total_threads = self.process_info.count_threads()
 
-                # obtém os processos que mais consomem memória (top 15)
-                top_processes = self.process_info.get_top_processes_by_memory()
+                # obtém os processos que mais consomem memória (top 50)
+                top_processes = self.process_info.get_top_processes_by_memory(limit=50)
 
-                # atualiza o dicionário de dados com as informações coletadas
                 with self._data_lock:
                     self.data = {
                         "cpu": cpu,  # dados de CPU (uso, tempo total, tempo ocioso)
                         "mem": mem,  # dados de memória (total, usado, livre, cache, etc.)
-                        "processes": processes,  # lista de todos os processos
-                        "total_processes": total_processes,  # contagem total de processos
-                        "total_threads": total_threads,  # contagem total de threads
-                        "top_processes": top_processes,  # top processos por memória
+                        "processes": processes,
+                        "total_processes": total_processes,
+                        "total_threads": total_threads,
+                        "top_processes": top_processes,
                     }
 
-            except Exception as e:
+            except Exception:
                 import traceback
 
                 traceback.print_exc()

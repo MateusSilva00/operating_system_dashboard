@@ -29,7 +29,7 @@ def main():
         if dashboard:
             try:
                 dashboard.destroy()
-            except:
+            except Exception:
                 pass
         sys.exit(0)
 

@@ -38,7 +38,7 @@ class Dashboard(tk.Tk):
         self.controller = controller
         self.mem_usage_history: List[float] = []
         self.show_all_memory_details = False
-        
+
         # Adicionar FileInfo para navegação de diretórios
         self.file_info = FileInfo()
         self.current_directory = "/"
@@ -173,7 +173,12 @@ class Dashboard(tk.Tk):
             background=[("selected", f"{self.COLORS['primary']}33")],
         )
         # Aplica cor de fundo para threads
-        style.configure("thread", background="#222a33", foreground="#00ff88", font=("JetBrains Mono", 10, "italic"))
+        style.configure(
+            "thread",
+            background="#222a33",
+            foreground="#00ff88",
+            font=("JetBrains Mono", 10, "italic"),
+        )
 
     def _create_interface(self):
         self._create_header()
@@ -312,13 +317,17 @@ class Dashboard(tk.Tk):
         proc_title = ttk.Label(process_card, text="PROCESSOS", style="Info.TLabel")
         proc_title.pack(anchor="w", padx=12, pady=(8, 3))
 
-        self.metric_labels["total_processes"] = ttk.Label(process_card, text="-- processos", style="Metric.TLabel")
+        self.metric_labels["total_processes"] = ttk.Label(
+            process_card, text="-- processos", style="Metric.TLabel"
+        )
         self.metric_labels["total_processes"].pack(anchor="w", padx=12, pady=(0, 8))
 
         thread_title = ttk.Label(thread_card, text="THREADS", style="Info.TLabel")
         thread_title.pack(anchor="w", padx=12, pady=(8, 3))
 
-        self.metric_labels["total_threads"] = ttk.Label(thread_card, text="-- threads", style="Metric.TLabel")
+        self.metric_labels["total_threads"] = ttk.Label(
+            thread_card, text="-- threads", style="Metric.TLabel"
+        )
         self.metric_labels["total_threads"].pack(anchor="w", padx=12, pady=(0, 8))
 
         self.process_tab_control = ttk.Notebook(container)
@@ -330,8 +339,21 @@ class Dashboard(tk.Tk):
         proc_container = tk.Frame(processes_frame, bg=self.BACKGROUND_COLOR)
         proc_container.pack(fill="both", expand=True, padx=8, pady=8)
 
-        proc_columns = ("Num", "PID", "USUÁRIO", "PROCESSO", "STATUS", "MEMÓRIA", "THREADS")
-        tree = ttk.Treeview(proc_container, columns=proc_columns, show="headings", style="Futuristic.Treeview")
+        proc_columns = (
+            "Num",
+            "PID",
+            "USUÁRIO",
+            "PROCESSO",
+            "STATUS",
+            "MEMÓRIA",
+            "THREADS",
+        )
+        tree = ttk.Treeview(
+            proc_container,
+            columns=proc_columns,
+            show="headings",
+            style="Futuristic.Treeview",
+        )
         tree.heading("Num", text="")
         tree.column("Num", width=30, anchor="w")
         for col in proc_columns[1:]:
@@ -357,16 +379,26 @@ class Dashboard(tk.Tk):
         details_container = tk.Frame(details_frame, bg=self.BACKGROUND_COLOR)
         details_container.pack(fill="both", expand=True, padx=8, pady=8)
 
-        details_header = ttk.Label(details_container, text="DETALHES DO PROCESSO", style="Info.TLabel")
+        details_header = ttk.Label(
+            details_container, text="DETALHES DO PROCESSO", style="Info.TLabel"
+        )
         details_header.pack(anchor="w", pady=(0, 8))
 
         details_text_frame = tk.Frame(details_container, bg=self.BACKGROUND_COLOR)
         details_text_frame.pack(fill="both", expand=True)
 
-        self.details_text = tk.Text(details_text_frame, bg=self.COLORS["dark"], fg=self.COLORS["text"], 
-                                   font=("JetBrains Mono", 9), wrap=tk.WORD, state=tk.DISABLED)
+        self.details_text = tk.Text(
+            details_text_frame,
+            bg=self.COLORS["dark"],
+            fg=self.COLORS["text"],
+            font=("JetBrains Mono", 9),
+            wrap=tk.WORD,
+            state=tk.DISABLED,
+        )
 
-        details_scrollbar = ttk.Scrollbar(details_text_frame, orient="vertical", command=self.details_text.yview)
+        details_scrollbar = ttk.Scrollbar(
+            details_text_frame, orient="vertical", command=self.details_text.yview
+        )
         self.details_text.configure(yscrollcommand=details_scrollbar.set)
 
         self.details_text.pack(side="left", fill="both", expand=True)
@@ -414,7 +446,7 @@ class Dashboard(tk.Tk):
             msg = f"Recursos para TID {pid_tid}.\n\nThreads compartilham recursos do processo principal.\n\n"
         else:
             msg = f"Recursos para PID {pid_tid}.\n\n"
-        
+
         try:
             resources = self.controller.system_info.get_process_resources(int(pid))
         except Exception as e:
@@ -425,18 +457,30 @@ class Dashboard(tk.Tk):
         win.title(f"Recursos - {pid_tid}")
         win.geometry("600x400")
         win.configure(bg=self.BACKGROUND_COLOR)
-        
-        close_btn = tk.Button(win, text="Fechar", command=win.destroy, 
-                             bg=self.COLORS["primary"], fg=self.COLORS["background"], 
-                             font=("JetBrains Mono", 10, "bold"), relief="flat", 
-                             padx=8, pady=4)
+
+        close_btn = tk.Button(
+            win,
+            text="Fechar",
+            command=win.destroy,
+            bg=self.COLORS["primary"],
+            fg=self.COLORS["background"],
+            font=("JetBrains Mono", 10, "bold"),
+            relief="flat",
+            padx=8,
+            pady=4,
+        )
         close_btn.pack(side="bottom", pady=8)
-        
-        text = tk.Text(win, bg=self.COLORS["dark"], fg=self.COLORS["text"], 
-                      font=("JetBrains Mono", 9), wrap=tk.WORD)
+
+        text = tk.Text(
+            win,
+            bg=self.COLORS["dark"],
+            fg=self.COLORS["text"],
+            font=("JetBrains Mono", 9),
+            wrap=tk.WORD,
+        )
         text.pack(fill="both", expand=True, padx=12, pady=12)
         text.insert("end", msg)
-        
+
         if resources:
             open_files = resources.get("open_files", [])
             text.insert("end", f"Arquivos abertos ({len(open_files)}):\n")
@@ -444,18 +488,18 @@ class Dashboard(tk.Tk):
                 text.insert("end", f"  [fd {f['fd']}] {f['target']}\n")
             if not open_files:
                 text.insert("end", "  Nenhum arquivo encontrado.\n")
-            
+
             sockets = resources.get("sockets", [])
             text.insert("end", f"\nSockets ({len(sockets)}):\n")
             for s in sockets:
                 text.insert("end", f"  [fd {s['fd']}] {s['target']}\n")
             if not sockets:
                 text.insert("end", "  Nenhum socket encontrado.\n")
-            
+
             semaphores = resources.get("semaphores", [])
             text.insert("end", f"\nSemáforos/Mutexes ({len(semaphores)}):\n")
             for sem in semaphores:
-                info_preview = sem['info'][:50].replace("\n", " ")
+                info_preview = sem["info"][:50].replace("\n", " ")
                 text.insert("end", f"  [fd {sem['fd']}] {info_preview}...\n")
             if not semaphores:
                 text.insert("end", "  Nenhum semáforo/mutex encontrado.\n")
@@ -491,7 +535,7 @@ class Dashboard(tk.Tk):
                     "-",  # Memória não detalhada por thread
                     "-",  # Threads por thread não faz sentido
                 ),
-                tags=("thread",)
+                tags=("thread",),
             )
             self._thread_items.append(thread_id)
         tree.set(item_id, "Num", value="▼")
@@ -561,7 +605,7 @@ class Dashboard(tk.Tk):
                     "-",  # Memória não detalhada por thread
                     "-",  # Threads por thread não faz sentido
                 ),
-                tags=("thread",)
+                tags=("thread",),
             )
             self._thread_items.append(thread_id)
         self._expanded_process = item_id
@@ -600,10 +644,13 @@ class Dashboard(tk.Tk):
 
             if page_usage and any(page_usage.values()):
                 output += f"\nPÁGINAS: {page_usage.get('total', 0)} kB\n"
+                output += f"heap: {page_usage.get('heap', 0)} kB\n"
+                output += f"stack: {page_usage.get('stack', 0)} kB\n"
+                output += f".text: {page_usage.get('.text', 0)} kB\n"
 
             if "Command Line" in details and details["Command Line"]:
                 output += f"\nComando: {details['Command Line']}\n"
-                
+
             # Mudar automaticamente para a aba de detalhes
             self.process_tab_control.select(1)  # Seleciona a segunda aba (DETALHES)
         else:
@@ -635,36 +682,72 @@ class Dashboard(tk.Tk):
         header = ttk.Label(header_frame, text="MÉTRICAS", style="Info.TLabel")
         header.pack(side="left")
 
-        self.toggle_button = tk.Button(header_frame, text="Mais", command=self._toggle_memory_details,
-                                     bg=self.COLORS["primary"], fg=self.COLORS["background"], 
-                                     font=("JetBrains Mono", 8, "bold"), relief="flat", 
-                                     padx=8, pady=3, cursor="hand2")
+        self.toggle_button = tk.Button(
+            header_frame,
+            text="Mais",
+            command=self._toggle_memory_details,
+            bg=self.COLORS["primary"],
+            fg=self.COLORS["background"],
+            font=("JetBrains Mono", 8, "bold"),
+            relief="flat",
+            padx=8,
+            pady=3,
+            cursor="hand2",
+        )
         self.toggle_button.pack(side="right")
 
         main_scroll_container = tk.Frame(metrics_frame, bg=self.COLORS["card"])
         main_scroll_container.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
-        self.main_canvas = tk.Canvas(main_scroll_container, bg=self.COLORS["card"], highlightthickness=0)
-        main_scrollbar = ttk.Scrollbar(main_scroll_container, orient="vertical", command=self.main_canvas.yview)
+        self.main_canvas = tk.Canvas(
+            main_scroll_container, bg=self.COLORS["card"], highlightthickness=0
+        )
+        main_scrollbar = ttk.Scrollbar(
+            main_scroll_container, orient="vertical", command=self.main_canvas.yview
+        )
         self.main_scrollable_frame = tk.Frame(self.main_canvas, bg=self.COLORS["card"])
 
-        self.main_scrollable_frame.bind("<Configure>", 
-                                       lambda e: self.main_canvas.configure(scrollregion=self.main_canvas.bbox("all")))
-        self.main_canvas.create_window((0, 0), window=self.main_scrollable_frame, anchor="nw")
+        self.main_scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.main_canvas.configure(
+                scrollregion=self.main_canvas.bbox("all")
+            ),
+        )
+        self.main_canvas.create_window(
+            (0, 0), window=self.main_scrollable_frame, anchor="nw"
+        )
         self.main_canvas.configure(yscrollcommand=main_scrollbar.set)
 
-        self.main_canvas.bind("<Enter>", lambda e: self.main_canvas.bind_all("<Button-4>", self._on_mousewheel_linux))
-        self.main_canvas.bind("<Leave>", lambda e: self.main_canvas.unbind_all("<Button-4>"))
-        self.main_canvas.bind("<Enter>", lambda e: self.main_canvas.bind_all("<Button-5>", self._on_mousewheel_linux))
-        self.main_canvas.bind("<Leave>", lambda e: self.main_canvas.unbind_all("<Button-5>"))
+        self.main_canvas.bind(
+            "<Enter>",
+            lambda e: self.main_canvas.bind_all(
+                "<Button-4>", self._on_mousewheel_linux
+            ),
+        )
+        self.main_canvas.bind(
+            "<Leave>", lambda e: self.main_canvas.unbind_all("<Button-4>")
+        )
+        self.main_canvas.bind(
+            "<Enter>",
+            lambda e: self.main_canvas.bind_all(
+                "<Button-5>", self._on_mousewheel_linux
+            ),
+        )
+        self.main_canvas.bind(
+            "<Leave>", lambda e: self.main_canvas.unbind_all("<Button-5>")
+        )
 
         self.main_canvas.pack(side="left", fill="both", expand=True)
         main_scrollbar.pack(side="right", fill="y")
 
-        self.main_metrics_frame = tk.Frame(self.main_scrollable_frame, bg=self.COLORS["card"])
+        self.main_metrics_frame = tk.Frame(
+            self.main_scrollable_frame, bg=self.COLORS["card"]
+        )
         self.main_metrics_frame.pack(fill="x", pady=(0, 8))
 
-        self.extra_details_frame = tk.Frame(self.main_scrollable_frame, bg=self.COLORS["card"])
+        self.extra_details_frame = tk.Frame(
+            self.main_scrollable_frame, bg=self.COLORS["card"]
+        )
 
         self._create_metric_groups(self.main_metrics_frame)
         self._create_extra_memory_details()
@@ -1064,6 +1147,7 @@ class Dashboard(tk.Tk):
     def _update_filesystem_tab(self):
         """Atualiza as informações do sistema de arquivos na aba"""
         from view.utils import format_memory_size
+
         tree = self.trees.get("filesystem")
         if not tree:
             return
@@ -1074,15 +1158,19 @@ class Dashboard(tk.Tk):
             total_str = format_memory_size(usage["total_size"] // 1024)
             used_str = format_memory_size(usage["used_size"] // 1024)
             free_str = format_memory_size(usage["free_size"] // 1024)
-            percent = f'{usage["percent_usage"]:.2f}%'
-            tree.insert("", "end", values=(
-                usage["partition"],
-                usage["mount_path"],
-                total_str,
-                used_str,
-                free_str,
-                percent
-            ))
+            percent = f"{usage['percent_usage']:.2f}%"
+            tree.insert(
+                "",
+                "end",
+                values=(
+                    usage["partition"],
+                    usage["mount_path"],
+                    total_str,
+                    used_str,
+                    free_str,
+                    percent,
+                ),
+            )
 
     def _update_data(self):
         try:
@@ -1114,7 +1202,9 @@ class Dashboard(tk.Tk):
         header_frame = tk.Frame(container, bg=self.BACKGROUND_COLOR)
         header_frame.pack(fill="x", pady=(0, 10))
 
-        title = ttk.Label(header_frame, text="NAVEGADOR DE ARQUIVOS", style="Title.TLabel")
+        title = ttk.Label(
+            header_frame, text="NAVEGADOR DE ARQUIVOS", style="Title.TLabel"
+        )
         title.pack(side="left")
 
         # Barra de navegação
@@ -1125,22 +1215,46 @@ class Dashboard(tk.Tk):
         btn_frame = tk.Frame(nav_frame, bg=self.BACKGROUND_COLOR)
         btn_frame.pack(side="left")
 
-        self.btn_back = tk.Button(btn_frame, text="◀ Voltar", command=self._go_back,
-                                 bg=self.COLORS["primary"], fg=self.COLORS["background"],
-                                 font=("JetBrains Mono", 9, "bold"), relief="flat",
-                                 padx=8, pady=4, cursor="hand2")
+        self.btn_back = tk.Button(
+            btn_frame,
+            text="◀ Voltar",
+            command=self._go_back,
+            bg=self.COLORS["primary"],
+            fg=self.COLORS["background"],
+            font=("JetBrains Mono", 9, "bold"),
+            relief="flat",
+            padx=8,
+            pady=4,
+            cursor="hand2",
+        )
         self.btn_back.pack(side="left", padx=(0, 5))
 
-        self.btn_up = tk.Button(btn_frame, text="▲ Acima", command=self._go_up,
-                               bg=self.COLORS["primary"], fg=self.COLORS["background"],
-                               font=("JetBrains Mono", 9, "bold"), relief="flat",
-                               padx=8, pady=4, cursor="hand2")
+        self.btn_up = tk.Button(
+            btn_frame,
+            text="▲ Acima",
+            command=self._go_up,
+            bg=self.COLORS["primary"],
+            fg=self.COLORS["background"],
+            font=("JetBrains Mono", 9, "bold"),
+            relief="flat",
+            padx=8,
+            pady=4,
+            cursor="hand2",
+        )
         self.btn_up.pack(side="left", padx=(0, 5))
 
-        self.btn_home = tk.Button(btn_frame, text="🏠 Home", command=self._go_home,
-                                 bg=self.COLORS["primary"], fg=self.COLORS["background"],
-                                 font=("JetBrains Mono", 9, "bold"), relief="flat",
-                                 padx=8, pady=4, cursor="hand2")
+        self.btn_home = tk.Button(
+            btn_frame,
+            text="🏠 Home",
+            command=self._go_home,
+            bg=self.COLORS["primary"],
+            fg=self.COLORS["background"],
+            font=("JetBrains Mono", 9, "bold"),
+            relief="flat",
+            padx=8,
+            pady=4,
+            cursor="hand2",
+        )
         self.btn_home.pack(side="left")
 
         # Campo de caminho atual
@@ -1155,10 +1269,18 @@ class Dashboard(tk.Tk):
         self.path_entry.pack(side="left", fill="x", expand=True, padx=(5, 5))
         self.path_entry.bind("<Return>", self._on_path_enter)
 
-        go_btn = tk.Button(path_frame, text="IR", command=self._navigate_to_path,
-                          bg=self.COLORS["secondary"], fg=self.COLORS["background"],
-                          font=("JetBrains Mono", 9, "bold"), relief="flat",
-                          padx=8, pady=4, cursor="hand2")
+        go_btn = tk.Button(
+            path_frame,
+            text="IR",
+            command=self._navigate_to_path,
+            bg=self.COLORS["secondary"],
+            fg=self.COLORS["background"],
+            font=("JetBrains Mono", 9, "bold"),
+            relief="flat",
+            padx=8,
+            pady=4,
+            cursor="hand2",
+        )
         go_btn.pack(side="right")
 
         # Layout principal: árvore de diretórios + lista de arquivos
@@ -1174,11 +1296,15 @@ class Dashboard(tk.Tk):
         tree_header = tk.Frame(tree_frame, bg=self.COLORS["card"])
         tree_header.pack(fill="x", padx=12, pady=12)
 
-        tree_title = ttk.Label(tree_header, text="ÁRVORE DE DIRETÓRIOS", style="Info.TLabel")
+        tree_title = ttk.Label(
+            tree_header, text="ÁRVORE DE DIRETÓRIOS", style="Info.TLabel"
+        )
         tree_title.pack()
 
         # Treeview para árvore de diretórios
-        self.dir_tree = ttk.Treeview(tree_frame, show="tree", style="Futuristic.Treeview")
+        self.dir_tree = ttk.Treeview(
+            tree_frame, show="tree", style="Futuristic.Treeview"
+        )
         self.dir_tree.pack(fill="both", expand=True, padx=12, pady=(0, 12))
         self.dir_tree.bind("<<TreeviewSelect>>", self._on_directory_select)
 
@@ -1189,20 +1315,28 @@ class Dashboard(tk.Tk):
         files_header = tk.Frame(files_frame, bg=self.COLORS["card"])
         files_header.pack(fill="x", padx=15, pady=15)
 
-        files_title = ttk.Label(files_header, text="CONTEÚDO DO DIRETÓRIO", style="Info.TLabel")
+        files_title = ttk.Label(
+            files_header, text="CONTEÚDO DO DIRETÓRIO", style="Info.TLabel"
+        )
         files_title.pack(side="left")
 
         # Busca
         search_frame = tk.Frame(files_header, bg=self.COLORS["card"])
         search_frame.pack(side="right")
 
-        search_label = ttk.Label(search_frame, text="Buscar:", 
-                                font=("JetBrains Mono", 9), foreground=self.COLORS["text"],
-                                background=self.COLORS["card"])
+        search_label = ttk.Label(
+            search_frame,
+            text="Buscar:",
+            font=("JetBrains Mono", 9),
+            foreground=self.COLORS["text"],
+            background=self.COLORS["card"],
+        )
         search_label.pack(side="left", padx=(0, 5))
 
         self.search_var = tk.StringVar()
-        self.search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=20)
+        self.search_entry = ttk.Entry(
+            search_frame, textvariable=self.search_var, width=20
+        )
         self.search_entry.pack(side="left")
         self.search_entry.bind("<KeyRelease>", self._on_search)
 
@@ -1210,30 +1344,43 @@ class Dashboard(tk.Tk):
         files_container = tk.Frame(files_frame, bg=self.COLORS["card"])
         files_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
 
-        columns = ("Nome", "Tipo", "Tamanho", "Permissões", "Proprietário", "Modificado")
-        self.files_tree = ttk.Treeview(files_container, columns=columns, show="headings", 
-                                      style="Futuristic.Treeview")
-        
+        columns = (
+            "Nome",
+            "Tipo",
+            "Tamanho",
+            "Permissões",
+            "Proprietário",
+            "Modificado",
+        )
+        self.files_tree = ttk.Treeview(
+            files_container,
+            columns=columns,
+            show="headings",
+            style="Futuristic.Treeview",
+        )
+
         # Configurar colunas
         self.files_tree.heading("Nome", text="Nome")
         self.files_tree.column("Nome", width=200, anchor="w")
-        
+
         self.files_tree.heading("Tipo", text="Tipo")
         self.files_tree.column("Tipo", width=80, anchor="center")
-        
+
         self.files_tree.heading("Tamanho", text="Tamanho")
         self.files_tree.column("Tamanho", width=80, anchor="e")
-        
+
         self.files_tree.heading("Permissões", text="Permissões")
         self.files_tree.column("Permissões", width=100, anchor="center")
-        
+
         self.files_tree.heading("Proprietário", text="Proprietário")
         self.files_tree.column("Proprietário", width=100, anchor="center")
-        
+
         self.files_tree.heading("Modificado", text="Modificado")
         self.files_tree.column("Modificado", width=130, anchor="center")
 
-        files_scrollbar = ttk.Scrollbar(files_container, orient="vertical", command=self.files_tree.yview)
+        files_scrollbar = ttk.Scrollbar(
+            files_container, orient="vertical", command=self.files_tree.yview
+        )
         self.files_tree.configure(yscrollcommand=files_scrollbar.set)
 
         self.files_tree.pack(side="left", fill="both", expand=True)
@@ -1248,17 +1395,21 @@ class Dashboard(tk.Tk):
     def _populate_directory_tree(self):
         """Popula a árvore de diretórios"""
         self.dir_tree.delete(*self.dir_tree.get_children())
-        
+
         # Adicionar nó raiz
         root_node = self.dir_tree.insert("", "end", text="/", values=["/"], open=True)
-        
+
         # Adicionar diretórios principais
         try:
             main_dirs = ["/home", "/usr", "/var", "/etc", "/opt", "/tmp"]
             for dir_path in main_dirs:
                 if os.path.exists(dir_path) and os.path.isdir(dir_path):
-                    node = self.dir_tree.insert(root_node, "end", text=os.path.basename(dir_path), 
-                                               values=[dir_path])
+                    node = self.dir_tree.insert(
+                        root_node,
+                        "end",
+                        text=os.path.basename(dir_path),
+                        values=[dir_path],
+                    )
                     # Adicionar placeholder para mostrar seta de expansão
                     self.dir_tree.insert(node, "end", text="...", values=[""])
         except Exception:
@@ -1275,15 +1426,17 @@ class Dashboard(tk.Tk):
     def _populate_files_list(self):
         """Popula a lista de arquivos do diretório atual"""
         self.files_tree.delete(*self.files_tree.get_children())
-        
+
         try:
             contents = self.file_info.get_directory_contents(self.current_directory)
-            
+
             # Filtrar por busca se houver
             search_term = self.search_var.get().lower()
             if search_term:
-                contents = [item for item in contents if search_term in item["name"].lower()]
-            
+                contents = [
+                    item for item in contents if search_term in item["name"].lower()
+                ]
+
             for item in contents:
                 # Ícone para tipo
                 name_display = item["name"]
@@ -1293,16 +1446,20 @@ class Dashboard(tk.Tk):
                     name_display = f"🔗 {name_display}"
                 else:
                     name_display = f"📄 {name_display}"
-                
-                self.files_tree.insert("", "end", values=(
-                    name_display,
-                    item["type"],
-                    item["size_formatted"] if not item["is_directory"] else "-",
-                    item["permissions"],
-                    item["owner"],
-                    item["modified"]
-                ))
-                
+
+                self.files_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        name_display,
+                        item["type"],
+                        item["size_formatted"] if not item["is_directory"] else "-",
+                        item["permissions"],
+                        item["owner"],
+                        item["modified"],
+                    ),
+                )
+
         except Exception as e:
             print(f"Erro ao listar arquivos: {e}")
 
@@ -1325,9 +1482,9 @@ class Dashboard(tk.Tk):
             name = self.files_tree.item(item, "values")[0]
             # Remove ícone do nome
             clean_name = name.split(" ", 1)[-1] if " " in name else name
-            
+
             new_path = os.path.join(self.current_directory, clean_name)
-            
+
             if os.path.isdir(new_path):
                 self.current_directory = new_path
                 self.path_var.set(new_path)
