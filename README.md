@@ -72,4 +72,4 @@ python main.py
 
 ## License
 
-For academic use in the Data Communication course.
+For academic use in the Operating Systems course.
